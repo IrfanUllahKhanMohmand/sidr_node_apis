@@ -1,6 +1,6 @@
 // File: models/User.js
 
-const db = require("../config/db").default;
+const db = require("../config/db");
 
 const User = {
   create: (id, name, email, profileImage, callback) => {
