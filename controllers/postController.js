@@ -1,9 +1,11 @@
 // File: controllers/postController.js
 
+const { get } = require("http");
 const Post = require("../models/Post");
 const crypto = require("crypto");
 const createPost = (req, res) => {
-  const { title, content, userId } = req.body;
+  const { title, content } = req.body;
+  const userId = req.currentUid;
   const imagePath = req.file ? req.file.location : null;
   const id = crypto.randomBytes(16).toString("hex");
 
@@ -79,15 +81,38 @@ const getPostById = (req, res) => {
 
 const getPostsByUserId = (req, res) => {
   const userId = req.params.userId;
+  const limit = parseInt(req.query.limit, 10) || 10; // Default limit to 10
+  const page = parseInt(req.query.page, 10) || 1; // Default page to 1
+  const offset = (page - 1) * limit;
 
-  Post.findByUserId(userId, (err, result) => {
+  // Call the findByUserId method with pagination parameters
+  Post.findByUserId(userId, { limit, offset }, (err, result) => {
+    if (err) return res.status(500).json({ error: "Database error" });
+    res.json(result);
+  });
+};
+
+const getCurrentUserPosts = (req, res) => {
+  const userId = req.currentUid;
+  const limit = parseInt(req.query.limit, 10) || 10; // Default limit to 10
+  const page = parseInt(req.query.page, 10) || 1; // Default page to 1
+  const offset = (page - 1) * limit;
+
+  // Call the findByUserId method with pagination parameters
+  Post.findByUserId(userId, { limit, offset }, (err, result) => {
     if (err) return res.status(500).json({ error: "Database error" });
     res.json(result);
   });
 };
 
 const getAllPosts = (req, res) => {
-  Post.findAll((err, result) => {
+  // Extract pagination parameters from query, with defaults
+  const limit = parseInt(req.query.limit, 10) || 10; // Default limit to 10
+  const page = parseInt(req.query.page, 10) || 1; // Default page to 1
+  const offset = (page - 1) * limit;
+
+  // Call the findAll method with pagination parameters
+  Post.findAll({ limit, offset }, (err, result) => {
     if (err) return res.status(500).json({ error: "Database error" });
     res.json(result);
   });
@@ -112,7 +137,8 @@ const getLikes = (req, res) => {
 };
 
 const addComment = (req, res) => {
-  const { content, userId } = req.body;
+  const { content } = req.body;
+  const userId = req.currentUid;
   const postId = req.params.id;
   const id = crypto.randomBytes(16).toString("hex");
   if (!content || !userId) {
@@ -143,7 +169,7 @@ const removeComment = (req, res) => {
 };
 
 const addLike = (req, res) => {
-  const userId = req.body.userId;
+  const userId = req.currentUid;
   const emoji = req.body.emoji;
   const postId = req.params.id;
   const id = crypto.randomBytes(16).toString("hex");
@@ -160,7 +186,7 @@ const addLike = (req, res) => {
 };
 
 const removeLike = (req, res) => {
-  const userId = req.body.userId;
+  const userId = req.currentUid;
   const postId = req.params.id;
 
   Post.removeLike(postId, userId, (err, result) => {
@@ -182,4 +208,5 @@ module.exports = {
   removeLike,
   getPostsByUserId,
   getAllPosts,
+  getCurrentUserPosts,
 };

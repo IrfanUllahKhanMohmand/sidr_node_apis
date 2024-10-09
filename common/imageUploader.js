@@ -2,7 +2,7 @@ const aws = require("aws-sdk");
 const multerS3 = require("multer-s3");
 const multer = require("multer");
 const dotenv = require("dotenv");
-
+require("aws-sdk/lib/maintenance_mode_message").suppress = true;
 dotenv.config();
 
 aws.config.update({

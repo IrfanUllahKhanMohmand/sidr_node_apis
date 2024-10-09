@@ -42,7 +42,8 @@ const Post = {
     db.query(query, [id], callback);
   },
 
-  findByUserId: (userId, callback) => {
+  // findByUserId function with pagination support
+  findByUserId: (userId, { limit, offset }, callback) => {
     const query = `
     SELECT p.*, 
            u.name, 
@@ -55,14 +56,15 @@ const Post = {
     LEFT JOIN users u ON p.userId = u.id 
     WHERE p.userId = ? 
     GROUP BY p.id, u.id, u.name, u.profile_image
-  `;
+    LIMIT ? OFFSET ?`; // Apply limit and offset for pagination
 
-    db.query(query, [userId], (err, results) => {
+    // Execute the query with userId, limit, and offset
+    db.query(query, [userId, limit, offset], (err, results) => {
       if (err) {
         return callback(err);
       }
 
-      // Transform results to include user info in a separate object
+      // Format results to include user info in a separate object
       const formattedResults = results.map((post) => ({
         post: {
           id: post.id,
@@ -79,7 +81,7 @@ const Post = {
         },
       }));
 
-      callback(null, formattedResults);
+      callback(null, formattedResults); // Return the array of user's posts with user info and counts
     });
   },
 
@@ -140,21 +142,23 @@ const Post = {
     });
   },
 
-  findAll: (callback) => {
+  // findAll function with pagination support
+  findAll: ({ limit, offset }, callback) => {
     const postsQuery = `
-      SELECT p.*, 
-             COUNT(DISTINCT l.id) AS likes, 
-             COUNT(DISTINCT c.id) AS commentCount,
-             u.name AS userName,
-             u.profile_image AS userProfileImage
-      FROM posts p 
-      LEFT JOIN likes l ON p.id = l.postId 
-      LEFT JOIN comments c ON p.id = c.postId 
-      LEFT JOIN users u ON p.userId = u.id
-      GROUP BY p.id, u.id, u.name, u.profile_image
-    `;
+    SELECT p.*, 
+           COUNT(DISTINCT l.id) AS likes, 
+           COUNT(DISTINCT c.id) AS commentCount,
+           u.name AS userName,
+           u.profile_image AS userProfileImage
+    FROM posts p 
+    LEFT JOIN likes l ON p.id = l.postId 
+    LEFT JOIN comments c ON p.id = c.postId 
+    LEFT JOIN users u ON p.userId = u.id
+    GROUP BY p.id, u.id, u.name, u.profile_image
+    LIMIT ? OFFSET ?`; // Apply limit and offset for pagination
 
-    db.query(postsQuery, (error, postResults) => {
+    // Execute the query with limit and offset
+    db.query(postsQuery, [limit, offset], (error, postResults) => {
       if (error) {
         return callback(error, null);
       }
@@ -163,7 +167,7 @@ const Post = {
         return callback(null, []);
       }
 
-      // Transform results to include user info in a separate object
+      // Format results to include user info in a separate object
       const formattedResults = postResults.map((post) => ({
         post: {
           id: post.id,

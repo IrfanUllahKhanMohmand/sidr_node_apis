@@ -1,5 +1,6 @@
 // File: controllers/userController.js
 
+const { request } = require("express");
 const User = require("../models/User");
 
 const createUser = async (req, res) => {
@@ -83,44 +84,36 @@ const getUserById = (req, res) => {
   });
 };
 
-const getAllUsers = (req, res) => {
-  User.findAll((err, result) => {
+const getCurrentUser = (req, res) => {
+  const userId = req.currentUid;
+  User.findById(userId, (err, result) => {
     // Handle database errors
     if (err) {
-      return res.status(500).json({ error: "Database error", err });
+      return res.status(500).json({ error: "Database error" });
     }
 
-    // Send the array of users as a response
+    // Check if the user was found
+    if (!result) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Send the user object as a response
     res.json(result);
   });
 };
 
-const addFollower = (req, res) => {
-  const userId = req.params.id; // User being followed
-  const followerId = req.body.follower_id; // User who is following
+const getAllUsers = (req, res) => {
+  // Extract pagination parameters from query, with defaults
+  const limit = parseInt(req.query.limit, 10) || 10; // Default limit to 10
+  const page = parseInt(req.query.page, 10) || 1; // Default page to 1
+  const offset = (page - 1) * limit;
 
-  User.addFollower(userId, followerId, (err, result) => {
-    if (err) return res.status(500).json({ error: "Database error" });
-
-    if (result && result.message) {
-      return res.json(result); // Handle already exists case
+  // Call the findAll method with pagination parameters
+  User.findAll({ limit, offset }, (err, result) => {
+    if (err) {
+      return res.status(500).json({ error: "Database error", err });
     }
-
-    res.json({ message: "Follower added successfully" });
-  });
-};
-
-const removeFollower = (req, res) => {
-  const userId = req.params.id; // User being unfollowed
-  const followerId = req.body.follower_id; // User who is unfollowing
-
-  User.removeFollower(userId, followerId, (err, result) => {
-    if (err) return res.status(500).json({ error: "Database error" });
-
-    if (result.affectedRows === 0)
-      return res.status(404).json({ error: "Follow relationship not found" });
-
-    res.json({ message: "Follower removed successfully" });
+    res.json(result);
   });
 };
 
@@ -133,9 +126,24 @@ const getFollowers = (req, res) => {
     }
 
     if (result.length === 0) {
-      return res
-        .status(404)
-        .json({ error: "No followers found for this user" });
+      return res.json([]);
+    }
+
+    // Map the result to return complete user details instead of just follower_id
+    res.json(result); // result already contains full user details
+  });
+};
+
+const getCurrentUserFollowers = (req, res) => {
+  const userId = req.currentUid; // User whose followers are being fetched
+
+  User.getFollowers(userId, (err, result) => {
+    if (err) {
+      return res.status(500).json({ error: "Database error" });
+    }
+
+    if (result.length === 0) {
+      return res.json([]);
     }
 
     // Map the result to return complete user details instead of just follower_id
@@ -144,30 +152,30 @@ const getFollowers = (req, res) => {
 };
 
 const addFollowing = (req, res) => {
-  const userId = req.params.id; // User who is following
-  const followingId = req.body.following_id; // User being followed
+  const userId = req.params.id; // User being followed
+  const followingId = req.currentUid; // User who is following
 
-  User.addFollowing(userId, followingId, (err, result) => {
+  User.addFollowing(followingId, userId, (err, result) => {
     if (err) return res.status(500).json({ error: "Database error" });
 
     if (result && result.message) {
       return res.json(result); // Handle already exists case
     }
 
-    res.json({ message: "Following added successfully" });
+    res.json({ message: "User followed successfully" });
   });
 };
 
 const removeFollowing = (req, res) => {
-  const userId = req.params.id; // User who is unfollowing
-  const followingId = req.body.following_id; // User being unfollowed
+  const userId = req.params.id; // User being unfollowed
+  const followingId = req.currentUid; // User who is unfollowing
 
   User.removeFollowing(userId, followingId, (err, result) => {
     if (err) return res.status(500).json({ error: "Database error" });
 
     if (result.affectedRows === 0) return res.json([]);
 
-    res.json({ message: "Following removed successfully" });
+    res.json({ message: "User unfollowed successfully" });
   });
 };
 
@@ -187,16 +195,35 @@ const getFollowings = (req, res) => {
     res.json(result); // result already contains full user details
   });
 };
+
+const getCurrentUserFollowings = (req, res) => {
+  const userId = req.currentUid; // User whose followings are being fetched
+
+  User.getFollowings(userId, (err, result) => {
+    if (err) {
+      return res.status(500).json({ error: "Database error" });
+    }
+
+    if (result.length === 0) {
+      return res.json([]); // Return an empty array if no followings found
+    }
+
+    // Map the result to return complete user details instead of just following_id
+    res.json(result); // result already contains full user details
+  });
+};
+
 module.exports = {
   createUser,
   updateUser,
   deleteUser,
   getUserById,
+  getCurrentUser,
   getAllUsers,
-  addFollower,
-  removeFollower,
   getFollowers,
+  getCurrentUserFollowers,
   addFollowing,
   removeFollowing,
   getFollowings,
+  getCurrentUserFollowings,
 };

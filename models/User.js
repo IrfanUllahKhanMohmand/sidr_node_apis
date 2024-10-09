@@ -42,6 +42,16 @@ const User = {
     db.query(query, [id], callback);
   },
 
+  doesUserExist: (id, callback) => {
+    const query = "SELECT COUNT(*) AS user_exists FROM users WHERE id = ?";
+    db.query(query, [id], (error, results) => {
+      if (error) {
+        return callback(error);
+      }
+      callback(null, results[0].user_exists > 0);
+    });
+  },
+
   findById: (id, callback) => {
     const query = `
         SELECT u.*, 
@@ -67,19 +77,21 @@ const User = {
     });
   },
 
-  findAll: (callback) => {
+  // findAll function with pagination support
+  findAll: ({ limit, offset }, callback) => {
     const query = `
-        SELECT u.*, 
-               (SELECT COUNT(f.follower_id) FROM followers f WHERE f.following_id = u.id) AS followers_count,
-               (SELECT COUNT(f.following_id) FROM followers f WHERE f.follower_id = u.id) AS followings_count
-        FROM users u`;
+      SELECT u.*, 
+             (SELECT COUNT(f.follower_id) FROM followers f WHERE f.following_id = u.id) AS followers_count,
+             (SELECT COUNT(f.following_id) FROM followers f WHERE f.follower_id = u.id) AS followings_count
+      FROM users u
+      LIMIT ? OFFSET ?`; // Apply limit and offset for pagination
 
-    db.query(query, (error, results) => {
+    // Pass limit and offset to the database query
+    db.query(query, [limit, offset], (error, results) => {
       if (error) {
         return callback(error);
       }
 
-      // Process each user result to include counts of followers and followings
       const usersWithFollowersAndFollowingsCount = results.map((user) => {
         user.followers_count = user.followers_count || 0; // Default to 0 if null
         user.followings_count = user.followings_count || 0; // Default to 0 if null

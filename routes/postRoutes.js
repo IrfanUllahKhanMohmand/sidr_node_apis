@@ -14,22 +14,26 @@ const {
   removeLike,
   getPostsByUserId,
   getAllPosts,
+  getCurrentUserPosts,
 } = require("../controllers/postController");
 
 const router = express.Router();
 const { upload } = require("../common/imageUploader");
+const { verifyToken } = require("../common/verifyToken");
+const { getCurrentUser } = require("../controllers/userController");
 
-router.post("/posts", upload.single("image"), createPost);
-router.put("/posts/:id", upload.single("image"), updatePost);
-router.delete("/posts/:id", deletePost);
-router.get("/posts/:id", getPostById);
-router.get("/posts", getAllPosts);
-router.get("/users/:userId/posts", getPostsByUserId);
-router.get("/posts/:id/comments", getComments);
-router.get("/posts/:id/likes", getLikes);
-router.post("/posts/:id/comments", addComment);
-router.delete("/posts/comments/:commentId", removeComment);
-router.post("/posts/:id/likes", addLike);
-router.delete("/posts/:id/likes", removeLike);
+router.post("/posts", upload.single("image"), verifyToken, createPost);
+router.put("/posts/:id", upload.single("image"), verifyToken, updatePost);
+router.delete("/posts/:id", verifyToken, deletePost);
+router.get("/posts/:id", verifyToken, getPostById);
+router.get("/posts-me", verifyToken, getCurrentUserPosts);
+router.get("/posts", verifyToken, getAllPosts);
+router.get("/users/:userId/posts", verifyToken, getPostsByUserId);
+router.get("/posts/:id/comments", verifyToken, getComments);
+router.get("/posts/:id/likes", verifyToken, getLikes);
+router.post("/posts/:id/comments", verifyToken, addComment);
+router.delete("/posts/comments/:commentId", verifyToken, removeComment);
+router.post("/posts/:id/likes", verifyToken, addLike);
+router.delete("/posts/:id/likes", verifyToken, removeLike);
 
 module.exports = router;
