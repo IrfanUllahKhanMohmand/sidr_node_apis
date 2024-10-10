@@ -53,6 +53,21 @@ CREATE TABLE comments (
 
 
 
+CREATE TABLE charity_pages (
+    id VARCHAR(255) PRIMARY KEY,
+    name VARCHAR(255),
+    location VARCHAR(255),
+    front_image VARCHAR(255),
+    back_image VARCHAR(255),
+    description TEXT,
+    userId VARCHAR(255),
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+);
+
+
+
+
 
 
 

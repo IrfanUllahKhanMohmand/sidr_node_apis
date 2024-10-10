@@ -4,6 +4,7 @@ const bodyParser = require("body-parser");
 
 const userRoutes = require("./routes/userRoutes");
 const postRoutes = require("./routes/postRoutes");
+const charityPageRoutes = require("./routes/charityPagesRoutes");
 
 require("dotenv").config();
 
@@ -13,6 +14,7 @@ app.use(bodyParser.json());
 // Routes
 app.use(userRoutes);
 app.use(postRoutes);
+app.use(charityPageRoutes);
 
 const PORT = 5001;
 app.listen(PORT, () => {
