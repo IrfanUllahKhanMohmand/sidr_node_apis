@@ -92,7 +92,8 @@ const CharityPage = {
   },
 
   getPagesByUserId: (userId, callback) => {
-    const query = "SELECT * FROM charity_pages WHERE userId = ?";
+    const query =
+      "SELECT * FROM charity_pages WHERE userId = ? ORDER BY createdAt DESC";
     db.query(query, [userId], (err, result) => {
       if (err) {
         callback(err, null);
@@ -103,13 +104,47 @@ const CharityPage = {
   },
 
   getPages: (callback) => {
-    const query = "SELECT * FROM charity_pages";
+    const query = "SELECT * FROM charity_pages ORDER BY createdAt DESC";
     db.query(query, (err, result) => {
       if (err) {
         callback(err, null);
       } else {
         callback(null, result);
       }
+    });
+  },
+  followPage: (userId, charityPageId, callback) => {
+    const query = `
+      INSERT INTO follows (user_id, charity_page_id) 
+      VALUES (?, ?)
+    `;
+    db.query(query, [userId, charityPageId], (err, result) => {
+      if (err) callback(err, null);
+      else callback(null, { message: "Page followed successfully" });
+    });
+  },
+
+  unfollowPage: (userId, charityPageId, callback) => {
+    const query = `
+      DELETE FROM follows 
+      WHERE user_id = ? AND charity_page_id = ?
+    `;
+    db.query(query, [userId, charityPageId], (err, result) => {
+      if (err) callback(err, null);
+      else callback(null, { message: "Page unfollowed successfully" });
+    });
+  },
+
+  getCharityPageFollowers: (pageId, callback) => {
+    const query = `
+      SELECT users.id, users.name, users.profile_image
+      FROM users
+      JOIN follows ON users.id = follows.user_id
+      WHERE follows.charity_page_id = ?
+    `;
+    db.query(query, [pageId], (err, result) => {
+      if (err) callback(err, null);
+      else callback(null, result);
     });
   },
 };

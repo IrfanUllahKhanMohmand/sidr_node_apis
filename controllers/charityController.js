@@ -118,6 +118,45 @@ const getAllCharitiePages = (req, res) => {
   });
 };
 
+const followCharityPage = (req, res) => {
+  const userId = req.currentUid;
+  const charityPageId = req.params.id;
+
+  CharityPage.followPage(userId, charityPageId, (err, result) => {
+    if (err) {
+      console.log(err);
+      res.status(500).json({ error: "Failed to follow charity page" });
+    } else {
+      res.status(200).json({ message: "Charity page followed successfully" });
+    }
+  });
+};
+
+const unfollowCharityPage = (req, res) => {
+  const userId = req.currentUid;
+  const charityPageId = req.params.id;
+
+  CharityPage.unfollowPage(userId, charityPageId, (err, result) => {
+    if (err) {
+      res.status(500).json({ error: "Failed to unfollow charity page" });
+    } else {
+      res.status(200).json({ message: "Charity page unfollowed successfully" });
+    }
+  });
+};
+
+const getCharityPageFollowers = (req, res) => {
+  const pageId = req.params.id;
+
+  CharityPage.getCharityPageFollowers(pageId, (err, result) => {
+    if (err) {
+      res.status(500).json({ error: "Failed to get charity page followers" });
+    } else {
+      res.status(200).json({ followers: result });
+    }
+  });
+};
+
 module.exports = {
   createCharityPage,
   updateCharityPage,
@@ -126,4 +165,7 @@ module.exports = {
   getCharityPagesByUserId,
   getAllCharitiePages,
   getCurrentUserCharityPages,
+  followCharityPage,
+  unfollowCharityPage,
+  getCharityPageFollowers,
 };

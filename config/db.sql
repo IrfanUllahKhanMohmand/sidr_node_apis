@@ -65,8 +65,28 @@ CREATE TABLE charity_pages (
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
 );
 
+CREATE TABLE follows (
+    user_id VARCHAR(255),
+    charity_page_id VARCHAR(255),
+    followed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, charity_page_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (charity_page_id) REFERENCES charity_pages(id) ON DELETE CASCADE
+);
 
 
+
+CREATE TABLE messages (
+    id VARCHAR(255) PRIMARY KEY,
+    sender_id VARCHAR(255) NOT NULL,
+    receiver_id VARCHAR(255) NOT NULL,
+    message TEXT,
+    type ENUM('text', 'image', 'video', 'voice') DEFAULT 'text',
+    media_url VARCHAR(255) DEFAULT NULL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (sender_id) REFERENCES users(id),
+    FOREIGN KEY (receiver_id) REFERENCES users(id)
+);
 
 
 

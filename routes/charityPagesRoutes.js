@@ -12,6 +12,9 @@ const {
   getCharityPagesByUserId,
   getAllCharitiePages,
   getCurrentUserCharityPages,
+  followCharityPage,
+  unfollowCharityPage,
+  getCharityPageFollowers,
 } = require("../controllers/charityController");
 
 router.post(
@@ -43,5 +46,11 @@ router.get("/charities-me", verifyToken, getCurrentUserCharityPages);
 router.get("/users/:userId/charities", verifyToken, getCharityPagesByUserId);
 
 router.get("/charities", verifyToken, getAllCharitiePages);
+
+router.post("/charities/:id/follow", verifyToken, followCharityPage);
+
+router.post("/charities/:id/unfollow", verifyToken, unfollowCharityPage);
+
+router.get("/charities/:id/followers", verifyToken, getCharityPageFollowers);
 
 module.exports = router;

@@ -1,6 +1,5 @@
 // File: controllers/postController.js
 
-const { get } = require("http");
 const Post = require("../models/Post");
 const crypto = require("crypto");
 const createPost = (req, res) => {

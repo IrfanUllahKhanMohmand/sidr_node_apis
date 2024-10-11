@@ -56,6 +56,7 @@ const Post = {
     LEFT JOIN users u ON p.userId = u.id 
     WHERE p.userId = ? 
     GROUP BY p.id, u.id, u.name, u.profile_image
+    ORDER BY p.createdAt DESC
     LIMIT ? OFFSET ?`; // Apply limit and offset for pagination
 
     // Execute the query with userId, limit, and offset
@@ -68,6 +69,7 @@ const Post = {
       const formattedResults = results.map((post) => ({
         post: {
           id: post.id,
+          title: post.title,
           content: post.content,
           image_path: post.image_path,
           createdAt: post.createdAt,
@@ -124,6 +126,7 @@ const Post = {
         const formattedPost = {
           post: {
             id: post.id,
+            title: post.title,
             content: post.content,
             image_path: post.image_path,
             createdAt: post.createdAt,
@@ -155,6 +158,7 @@ const Post = {
     LEFT JOIN comments c ON p.id = c.postId 
     LEFT JOIN users u ON p.userId = u.id
     GROUP BY p.id, u.id, u.name, u.profile_image
+    ORDER BY p.createdAt DESC
     LIMIT ? OFFSET ?`; // Apply limit and offset for pagination
 
     // Execute the query with limit and offset
@@ -171,6 +175,7 @@ const Post = {
       const formattedResults = postResults.map((post) => ({
         post: {
           id: post.id,
+          title: post.title,
           content: post.content,
           image_path: post.image_path,
           createdAt: post.createdAt,
@@ -189,12 +194,24 @@ const Post = {
   },
 
   getComments: (postId, callback) => {
-    const query = "SELECT * FROM comments WHERE postId = ?";
+    const query = `
+        SELECT comments.*, users.name, users.profile_image
+        FROM comments
+        JOIN users ON comments.userId = users.id
+        WHERE comments.postId = ?
+        ORDER BY comments.createdAt ASC;
+    `;
     db.query(query, [postId], callback);
   },
 
   getLikes: (postId, callback) => {
-    const query = "SELECT * FROM likes WHERE postId = ?";
+    const query = `
+        SELECT likes.*, users.name, users.profile_image
+        FROM likes
+        JOIN users ON likes.userId = users.id
+        WHERE likes.postId = ?
+        ORDER BY likes.createdAt ASC;
+    `;
     db.query(query, [postId], callback);
   },
 
