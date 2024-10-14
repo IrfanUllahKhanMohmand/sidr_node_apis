@@ -89,6 +89,18 @@ CREATE TABLE messages (
 );
 
 
+CREATE TABLE donations (
+    id VARCHAR(255) PRIMARY KEY,
+    userId VARCHAR(255) NOT NULL,
+    charityPageId VARCHAR(255) NOT NULL,
+    amount DECIMAL(10, 2),
+    payment_method ENUM('Credit Card', 'PayPal', 'Bank Transfer'),
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (charityPageId) REFERENCES charity_pages(id),
+    FOREIGN KEY (userId) REFERENCES users(id)
+);
+
+
 
 
 

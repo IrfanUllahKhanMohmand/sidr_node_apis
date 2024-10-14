@@ -84,8 +84,10 @@ const getPostsByUserId = (req, res) => {
   const page = parseInt(req.query.page, 10) || 1; // Default page to 1
   const offset = (page - 1) * limit;
 
+  const currentUserId = req.currentUid;
+
   // Call the findByUserId method with pagination parameters
-  Post.findByUserId(userId, { limit, offset }, (err, result) => {
+  Post.findByUserId(userId, currentUserId, { limit, offset }, (err, result) => {
     if (err) return res.status(500).json({ error: "Database error" });
     res.json(result);
   });
@@ -98,7 +100,7 @@ const getCurrentUserPosts = (req, res) => {
   const offset = (page - 1) * limit;
 
   // Call the findByUserId method with pagination parameters
-  Post.findByUserId(userId, { limit, offset }, (err, result) => {
+  Post.findByUserId(userId, userId, { limit, offset }, (err, result) => {
     if (err) return res.status(500).json({ error: "Database error" });
     res.json(result);
   });
@@ -109,9 +111,10 @@ const getAllPosts = (req, res) => {
   const limit = parseInt(req.query.limit, 10) || 10; // Default limit to 10
   const page = parseInt(req.query.page, 10) || 1; // Default page to 1
   const offset = (page - 1) * limit;
+  const currentUserId = req.currentUid;
 
   // Call the findAll method with pagination parameters
-  Post.findAll({ limit, offset }, (err, result) => {
+  Post.findAll(currentUserId, { limit, offset }, (err, result) => {
     if (err) return res.status(500).json({ error: "Database error" });
     res.json(result);
   });

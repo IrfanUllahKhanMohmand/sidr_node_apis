@@ -43,29 +43,34 @@ const Post = {
   },
 
   // findByUserId function with pagination support
-  findByUserId: (userId, { limit, offset }, callback) => {
+  findByUserId: (userId, currentUserId, { limit, offset }, callback) => {
     const query = `
-    SELECT p.*, 
-           u.name, 
-           u.profile_image, 
-           COUNT(DISTINCT l.id) AS likes, 
-           COUNT(DISTINCT c.id) AS commentCount 
-    FROM posts p 
-    LEFT JOIN likes l ON p.id = l.postId 
-    LEFT JOIN comments c ON p.id = c.postId 
-    LEFT JOIN users u ON p.userId = u.id 
-    WHERE p.userId = ? 
-    GROUP BY p.id, u.id, u.name, u.profile_image
-    ORDER BY p.createdAt DESC
-    LIMIT ? OFFSET ?`; // Apply limit and offset for pagination
+      SELECT p.*, 
+             u.name, 
+             u.profile_image, 
+             COUNT(DISTINCT l.id) AS likes, 
+             COUNT(DISTINCT c.id) AS commentCount,
+             EXISTS (
+               SELECT 1 
+               FROM followers 
+               WHERE follower_id = ? AND following_id = u.id
+             ) AS isFollower
+      FROM posts p 
+      LEFT JOIN likes l ON p.id = l.postId 
+      LEFT JOIN comments c ON p.id = c.postId 
+      LEFT JOIN users u ON p.userId = u.id 
+      WHERE p.userId = ? 
+      GROUP BY p.id, u.id, u.name, u.profile_image
+      ORDER BY p.createdAt DESC
+      LIMIT ? OFFSET ?`;
 
-    // Execute the query with userId, limit, and offset
-    db.query(query, [userId, limit, offset], (err, results) => {
+    // Execute the query with currentUserId, userId, limit, and offset
+    db.query(query, [currentUserId, userId, limit, offset], (err, results) => {
       if (err) {
         return callback(err);
       }
 
-      // Format results to include user info in a separate object
+      // Format results to include user info and isFollower field
       const formattedResults = results.map((post) => ({
         post: {
           id: post.id,
@@ -80,10 +85,11 @@ const Post = {
           id: post.userId,
           name: post.name,
           profile_image: post.profile_image,
+          isFollower: Boolean(post.isFollower),
         },
       }));
 
-      callback(null, formattedResults); // Return the array of user's posts with user info and counts
+      callback(null, formattedResults); // Return posts with user info including isFollower field
     });
   },
 
@@ -146,51 +152,62 @@ const Post = {
   },
 
   // findAll function with pagination support
-  findAll: ({ limit, offset }, callback) => {
+  findAll: (currentUserId, { limit, offset }, callback) => {
     const postsQuery = `
-    SELECT p.*, 
-           COUNT(DISTINCT l.id) AS likes, 
-           COUNT(DISTINCT c.id) AS commentCount,
-           u.name AS userName,
-           u.profile_image AS userProfileImage
-    FROM posts p 
-    LEFT JOIN likes l ON p.id = l.postId 
-    LEFT JOIN comments c ON p.id = c.postId 
-    LEFT JOIN users u ON p.userId = u.id
-    GROUP BY p.id, u.id, u.name, u.profile_image
-    ORDER BY p.createdAt DESC
-    LIMIT ? OFFSET ?`; // Apply limit and offset for pagination
+      SELECT p.*, 
+             COUNT(DISTINCT l.id) AS likes, 
+             COUNT(DISTINCT c.id) AS commentCount,
+             u.name AS userName,
+             u.profile_image AS userProfileImage,
+             EXISTS (
+               SELECT 1 
+               FROM followers 
+               WHERE follower_id = ? AND following_id = u.id
+             ) AS isFollower
+      FROM posts p 
+      LEFT JOIN likes l ON p.id = l.postId 
+      LEFT JOIN comments c ON p.id = c.postId 
+      LEFT JOIN users u ON p.userId = u.id
+      WHERE p.userId != ?  -- Exclude posts from currentUserId
+      GROUP BY p.id, u.id, u.name, u.profile_image
+      ORDER BY p.createdAt DESC
+      LIMIT ? OFFSET ?`;
 
-    // Execute the query with limit and offset
-    db.query(postsQuery, [limit, offset], (error, postResults) => {
-      if (error) {
-        return callback(error, null);
+    // Execute the query with currentUserId, limit, and offset
+    db.query(
+      postsQuery,
+      [currentUserId, currentUserId, limit, offset],
+      (error, postResults) => {
+        if (error) {
+          return callback(error, null);
+        }
+
+        if (postResults.length === 0) {
+          return callback(null, []);
+        }
+
+        // Format results to include user info, follower status, and post data
+        const formattedResults = postResults.map((post) => ({
+          post: {
+            id: post.id,
+            title: post.title,
+            content: post.content,
+            image_path: post.image_path,
+            createdAt: post.createdAt,
+            likes: post.likes,
+            commentCount: post.commentCount,
+          },
+          user: {
+            id: post.userId,
+            name: post.userName,
+            profile_image: post.userProfileImage,
+            isFollower: Boolean(post.isFollower),
+          },
+        }));
+
+        callback(null, formattedResults); // Return the posts with user info, including isFollower
       }
-
-      if (postResults.length === 0) {
-        return callback(null, []);
-      }
-
-      // Format results to include user info in a separate object
-      const formattedResults = postResults.map((post) => ({
-        post: {
-          id: post.id,
-          title: post.title,
-          content: post.content,
-          image_path: post.image_path,
-          createdAt: post.createdAt,
-          likes: post.likes,
-          commentCount: post.commentCount,
-        },
-        user: {
-          id: post.userId,
-          name: post.userName,
-          profile_image: post.userProfileImage,
-        },
-      }));
-
-      callback(null, formattedResults); // Return the array of posts with user info and counts
-    });
+    );
   },
 
   getComments: (postId, callback) => {
@@ -235,6 +252,21 @@ const Post = {
   removeComment: (id, callback) => {
     const query = "DELETE FROM comments WHERE id = ?";
     db.query(query, [id], callback);
+  },
+  isFollower: (userId, followingId, callback) => {
+    const query = `
+        SELECT 1 
+        FROM followers 
+        WHERE follower_id = ? AND following_id = ? 
+        LIMIT 1`;
+    db.query(query, [userId, followingId], (err, results) => {
+      if (err) {
+        return callback(err, null);
+      }
+      // Check if we got any results back
+      const isFollower = results.length > 0;
+      callback(null, isFollower);
+    });
   },
 };
 
