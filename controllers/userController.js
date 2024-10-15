@@ -169,11 +169,13 @@ const addFollowing = (req, res) => {
 const removeFollowing = (req, res) => {
   const userId = req.params.id; // User being unfollowed
   const followingId = req.currentUid; // User who is unfollowing
-
-  User.removeFollowing(userId, followingId, (err, result) => {
+  console.log(userId, followingId);
+  User.removeFollowing(followingId, userId, (err, result) => {
     if (err) return res.status(500).json({ error: "Database error" });
 
-    if (result.affectedRows === 0) return res.json([]);
+    if (result && result.message) {
+      return res.json(result); // Handle already exists case
+    }
 
     res.json({ message: "User unfollowed successfully" });
   });

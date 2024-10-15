@@ -101,30 +101,6 @@ const User = {
       callback(null, usersWithFollowersAndFollowingsCount);
     });
   },
-  addFollower: (userId, followerId, callback) => {
-    // First, check if the follower already exists
-    const checkQuery = `SELECT COUNT(*) AS follower_exists FROM followers WHERE following_id = ? AND follower_id = ?`;
-
-    db.query(checkQuery, [userId, followerId], (checkErr, checkResult) => {
-      if (checkErr) {
-        return callback(checkErr);
-      }
-
-      // If the follower doesn't exist, add them
-      if (checkResult[0].follower_exists === 0) {
-        const addQuery = `INSERT INTO followers (follower_id, following_id) VALUES (?, ?)`;
-        db.query(addQuery, [followerId, userId], callback);
-      } else {
-        // Follower already exists
-        callback(null, { message: "Follower already exists" });
-      }
-    });
-  },
-
-  removeFollower: (userId, followerId, callback) => {
-    const query = `DELETE FROM followers WHERE following_id = ? AND follower_id = ?`;
-    db.query(query, [userId, followerId], callback);
-  },
 
   addFollowing: (userId, followingId, callback) => {
     // First, check if the user is already following
@@ -147,8 +123,24 @@ const User = {
   },
 
   removeFollowing: (userId, followingId, callback) => {
-    const query = `DELETE FROM followers WHERE follower_id = ? AND following_id = ?`;
-    db.query(query, [userId, followingId], callback);
+    const checkQuery = `SELECT COUNT(*) AS following_exists FROM followers WHERE follower_id = ? AND following_id = ?`;
+
+    db.query(checkQuery, [userId, followingId], (checkErr, checkResult) => {
+      if (checkErr) {
+        return callback(checkErr);
+      }
+      console.log(checkQuery, userId, followingId);
+      console.log(checkResult);
+
+      // If the user is following, remove them
+      if (checkResult[0].following_exists === 1) {
+        const removeQuery = `DELETE FROM followers WHERE follower_id = ? AND following_id = ?`;
+        db.query(removeQuery, [userId, followingId], callback);
+      } else {
+        // User is not following
+        callback(null, { message: "User is not following this user" });
+      }
+    });
   },
 
   getFollowers: (userId, callback) => {
