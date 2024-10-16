@@ -101,6 +101,18 @@ CREATE TABLE donations (
 );
 
 
+CREATE TABLE reports (
+    id VARCHAR(255) PRIMARY KEY,
+    postId VARCHAR(255),
+    userId VARCHAR(255),
+    reporting_user_id VARCHAR(255),
+    status ENUM('pending', 'resolved') DEFAULT 'pending',
+    reason TEXT,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (postId) REFERENCES posts(id) ON DELETE CASCADE,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (reporting_user_id) REFERENCES users(id) ON DELETE CASCADE
+);
 
 
 

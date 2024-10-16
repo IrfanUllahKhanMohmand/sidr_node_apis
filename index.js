@@ -7,11 +7,17 @@ const postRoutes = require("./routes/postRoutes");
 const charityPageRoutes = require("./routes/charityPagesRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const donationRoutes = require("./routes/donationRoutes");
+const reportRoutes = require("./routes/reportRoutes");
 
 require("dotenv").config();
 
 const app = express();
 app.use(bodyParser.json());
+
+//Add status of the user profile
+//Add status of the user profile
+//Add aprove status of the charity page
+//Update the status of the charity page
 
 // Routes
 app.use(userRoutes);
@@ -19,6 +25,7 @@ app.use(postRoutes);
 app.use(charityPageRoutes);
 app.use(messageRoutes);
 app.use(donationRoutes);
+app.use(reportRoutes);
 
 const PORT = 5001;
 app.listen(PORT, () => {

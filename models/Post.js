@@ -151,63 +151,81 @@ const Post = {
     });
   },
 
-  // findAll function with pagination support
-  findAll: (currentUserId, { limit, offset }, callback) => {
-    const postsQuery = `
-      SELECT p.*, 
-             COUNT(DISTINCT l.id) AS likes, 
-             COUNT(DISTINCT c.id) AS commentCount,
-             u.name AS userName,
-             u.profile_image AS userProfileImage,
-             EXISTS (
-               SELECT 1 
-               FROM followers 
-               WHERE follower_id = ? AND following_id = u.id
-             ) AS isFollower
-      FROM posts p 
-      LEFT JOIN likes l ON p.id = l.postId 
-      LEFT JOIN comments c ON p.id = c.postId 
-      LEFT JOIN users u ON p.userId = u.id
-      WHERE p.userId != ?  -- Exclude posts from currentUserId
-      GROUP BY p.id, u.id, u.name, u.profile_image
-      ORDER BY p.createdAt DESC
-      LIMIT ? OFFSET ?`;
+  // findAll function with optional currentUserId exclusion and search filter
+  findAll: ({ currentUserId, search, limit, offset }, callback) => {
+    let query = `
+    SELECT p.*, 
+           COUNT(DISTINCT l.id) AS likes, 
+           COUNT(DISTINCT c.id) AS commentCount,
+           u.name AS userName,
+           u.profile_image AS userProfileImage,
+           EXISTS (
+             SELECT 1 
+             FROM followers 
+             WHERE follower_id = ? AND following_id = u.id
+           ) AS isFollower
+    FROM posts p 
+    LEFT JOIN likes l ON p.id = l.postId 
+    LEFT JOIN comments c ON p.id = c.postId 
+    LEFT JOIN users u ON p.userId = u.id`;
 
-    // Execute the query with currentUserId, limit, and offset
-    db.query(
-      postsQuery,
-      [currentUserId, currentUserId, limit, offset],
-      (error, postResults) => {
-        if (error) {
-          return callback(error, null);
-        }
+    // Dynamic query construction based on optional parameters
+    let conditions = [];
+    let queryParams = [currentUserId || null]; // Always needed for follower check
 
-        if (postResults.length === 0) {
-          return callback(null, []);
-        }
+    // Exclude current user's posts if currentUserId is provided
+    if (currentUserId) {
+      conditions.push("p.userId != ?");
+      queryParams.push(currentUserId);
+    }
 
-        // Format results to include user info, follower status, and post data
-        const formattedResults = postResults.map((post) => ({
-          post: {
-            id: post.id,
-            title: post.title,
-            content: post.content,
-            image_path: post.image_path,
-            createdAt: post.createdAt,
-            likes: post.likes,
-            commentCount: post.commentCount,
-          },
-          user: {
-            id: post.userId,
-            name: post.userName,
-            profile_image: post.userProfileImage,
-            isFollower: Boolean(post.isFollower),
-          },
-        }));
+    // Search by title or content if search term is provided
+    if (search) {
+      conditions.push("(p.title LIKE ? OR p.content LIKE ?)");
+      queryParams.push(`%${search}%`, `%${search}%`);
+    }
 
-        callback(null, formattedResults); // Return the posts with user info, including isFollower
+    // Append WHERE conditions to the query if any
+    if (conditions.length > 0) {
+      query += ` WHERE ${conditions.join(" AND ")}`;
+    }
+
+    // Add pagination
+    query += " GROUP BY p.id, u.id, u.name, u.profile_image";
+    query += " ORDER BY p.createdAt DESC LIMIT ? OFFSET ?";
+    queryParams.push(limit, offset);
+
+    // Execute the query with dynamically ordered parameters
+    db.query(query, queryParams, (error, postResults) => {
+      if (error) {
+        return callback(error, null);
       }
-    );
+
+      if (postResults.length === 0) {
+        return callback(null, []); // No results found
+      }
+
+      // Format results with post and user details
+      const formattedResults = postResults.map((post) => ({
+        post: {
+          id: post.id,
+          title: post.title,
+          content: post.content,
+          image_path: post.image_path,
+          createdAt: post.createdAt,
+          likes: post.likes,
+          commentCount: post.commentCount,
+        },
+        user: {
+          id: post.userId,
+          name: post.userName,
+          profile_image: post.userProfileImage,
+          isFollower: Boolean(post.isFollower),
+        },
+      }));
+
+      callback(null, formattedResults); // Return formatted results
+    });
   },
 
   getComments: (postId, callback) => {

@@ -117,6 +117,39 @@ const getAllUsers = (req, res) => {
   });
 };
 
+// Route handler for search users
+const searchUsers = (req, res) => {
+  // Extract pagination and search parameters from the query
+  const limit = parseInt(req.query.limit, 10) || 10;
+  const page = parseInt(req.query.page, 10) || 1;
+  const offset = (page - 1) * limit;
+  const search = req.query.search || ""; // Search term
+
+  // Call findAll with search and pagination
+  User.findAll({ limit, offset, search }, (err, result) => {
+    if (err) {
+      return res.status(500).json({ error: "Database error", err });
+    }
+    res.json(result);
+  });
+};
+
+// Route handler for fetching all users except a specific user by ID
+const getAllExceptUser = (req, res) => {
+  const excludeId = req.currentUid; // Exclude the current user
+  const limit = parseInt(req.query.limit, 10) || 10;
+  const page = parseInt(req.query.page, 10) || 1;
+  const offset = (page - 1) * limit;
+  const search = req.query.search || "";
+
+  User.findAll({ limit, offset, search, excludeId }, (err, result) => {
+    if (err) {
+      return res.status(500).json({ error: "Database error", err });
+    }
+    res.json(result);
+  });
+};
+
 const getFollowers = (req, res) => {
   const userId = req.params.id; // User whose followers are being fetched
 
@@ -169,7 +202,6 @@ const addFollowing = (req, res) => {
 const removeFollowing = (req, res) => {
   const userId = req.params.id; // User being unfollowed
   const followingId = req.currentUid; // User who is unfollowing
-  console.log(userId, followingId);
   User.removeFollowing(followingId, userId, (err, result) => {
     if (err) return res.status(500).json({ error: "Database error" });
 
@@ -228,4 +260,6 @@ module.exports = {
   removeFollowing,
   getFollowings,
   getCurrentUserFollowings,
+  searchUsers,
+  getAllExceptUser,
 };

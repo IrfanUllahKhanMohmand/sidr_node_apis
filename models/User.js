@@ -1,5 +1,6 @@
 // File: models/User.js
 
+const e = require("express");
 const db = require("../config/db");
 
 const User = {
@@ -77,24 +78,43 @@ const User = {
     });
   },
 
-  // findAll function with pagination support
-  findAll: ({ limit, offset }, callback) => {
-    const query = `
-      SELECT u.*, 
-             (SELECT COUNT(f.follower_id) FROM followers f WHERE f.following_id = u.id) AS followers_count,
-             (SELECT COUNT(f.following_id) FROM followers f WHERE f.follower_id = u.id) AS followings_count
-      FROM users u
-      LIMIT ? OFFSET ?`; // Apply limit and offset for pagination
+  // Extend findAll to handle exclusion and search parameters
+  findAll: ({ limit, offset, search, excludeId }, callback) => {
+    let query = `
+    SELECT u.*, 
+           (SELECT COUNT(f.follower_id) FROM followers f WHERE f.following_id = u.id) AS followers_count,
+           (SELECT COUNT(f.following_id) FROM followers f WHERE f.follower_id = u.id) AS followings_count
+    FROM users u`;
 
-    // Pass limit and offset to the database query
-    db.query(query, [limit, offset], (error, results) => {
+    const queryParams = [];
+    let conditions = [];
+
+    if (excludeId) {
+      conditions.push("u.id != ?");
+      queryParams.push(excludeId); // Push excludeId first
+    }
+    if (search) {
+      conditions.push("(u.name LIKE ? OR u.email LIKE ?)");
+      queryParams.push(`%${search}%`, `%${search}%`); // Then add search terms
+    }
+
+    if (conditions.length > 0) {
+      query += ` WHERE ${conditions.join(" AND ")}`;
+    }
+
+    query += " LIMIT ? OFFSET ?"; // Add pagination
+
+    queryParams.push(limit, offset); // Finally add limit and offset
+
+    // Execute query with the correctly ordered parameters
+    db.query(query, queryParams, (error, results) => {
       if (error) {
         return callback(error);
       }
 
       const usersWithFollowersAndFollowingsCount = results.map((user) => {
-        user.followers_count = user.followers_count || 0; // Default to 0 if null
-        user.followings_count = user.followings_count || 0; // Default to 0 if null
+        user.followers_count = user.followers_count || 0;
+        user.followings_count = user.followings_count || 0;
         return user;
       });
 
@@ -129,8 +149,6 @@ const User = {
       if (checkErr) {
         return callback(checkErr);
       }
-      console.log(checkQuery, userId, followingId);
-      console.log(checkResult);
 
       // If the user is following, remove them
       if (checkResult[0].following_exists === 1) {

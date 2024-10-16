@@ -15,6 +15,7 @@ const {
   getPostsByUserId,
   getAllPosts,
   getCurrentUserPosts,
+  getAllPostsExceptUser,
 } = require("../controllers/postController");
 
 const router = express.Router();
@@ -27,7 +28,8 @@ router.put("/posts/:id", upload.single("image"), verifyToken, updatePost);
 router.delete("/posts/:id", verifyToken, deletePost);
 router.get("/posts/:id", verifyToken, getPostById);
 router.get("/posts-me", verifyToken, getCurrentUserPosts);
-router.get("/posts", verifyToken, getAllPosts);
+router.get("/posts", verifyToken, getAllPostsExceptUser);
+router.get("/all-posts", getAllPosts);
 router.get("/users/:userId/posts", verifyToken, getPostsByUserId);
 router.get("/posts/:id/comments", verifyToken, getComments);
 router.get("/posts/:id/likes", verifyToken, getLikes);

@@ -111,10 +111,25 @@ const getAllPosts = (req, res) => {
   const limit = parseInt(req.query.limit, 10) || 10; // Default limit to 10
   const page = parseInt(req.query.page, 10) || 1; // Default page to 1
   const offset = (page - 1) * limit;
-  const currentUserId = req.currentUid;
+  const search = req.query.search;
 
   // Call the findAll method with pagination parameters
-  Post.findAll(currentUserId, { limit, offset }, (err, result) => {
+  Post.findAll({ search, limit, offset }, (err, result) => {
+    if (err) return res.status(500).json({ error: "Database error" });
+    res.json(result);
+  });
+};
+
+const getAllPostsExceptUser = (req, res) => {
+  // Extract pagination parameters from query, with defaults
+  const limit = parseInt(req.query.limit, 10) || 10; // Default limit to 10
+  const page = parseInt(req.query.page, 10) || 1; // Default page to 1
+  const offset = (page - 1) * limit;
+  const currentUserId = req.currentUid;
+  const search = req.query.search;
+
+  // Call the findAll method with pagination parameters
+  Post.findAll({ currentUserId, search, limit, offset }, (err, result) => {
     if (err) return res.status(500).json({ error: "Database error" });
     res.json(result);
   });
@@ -211,4 +226,5 @@ module.exports = {
   getPostsByUserId,
   getAllPosts,
   getCurrentUserPosts,
+  getAllPostsExceptUser,
 };

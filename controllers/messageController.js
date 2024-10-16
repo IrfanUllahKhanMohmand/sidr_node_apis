@@ -34,7 +34,6 @@ const getMessages = (req, res) => {
 // Controller to get unique conversations for a user
 const getConversations = (req, res) => {
   const user_id = req.currentUid;
-  console.log(user_id);
   messageModel.getConversations(user_id, (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ conversations: results });

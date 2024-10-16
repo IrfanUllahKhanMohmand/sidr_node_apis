@@ -124,7 +124,6 @@ const followCharityPage = (req, res) => {
 
   CharityPage.followPage(userId, charityPageId, (err, result) => {
     if (err) {
-      console.log(err);
       res.status(500).json({ error: "Failed to follow charity page" });
     } else {
       res.status(200).json({ message: "Charity page followed successfully" });
