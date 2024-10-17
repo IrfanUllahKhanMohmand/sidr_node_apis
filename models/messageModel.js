@@ -20,17 +20,30 @@ const createMessage = (messageData, callback) => {
 // Fetch messages between two users
 const getMessages = (user1_id, user2_id, callback) => {
   const sql = `
-        SELECT * FROM messages 
-        WHERE (sender_id = ? AND receiver_id = ?) 
-           OR (sender_id = ? AND receiver_id = ?)
-        ORDER BY timestamp DESC
-    `;
-  db.query(sql, [user1_id, user2_id, user2_id, user1_id], (err, results) => {
-    if (err) return callback(err);
-    callback(null, results);
-  });
+          SELECT 
+            m.*,
+            CASE 
+              WHEN m.sender_id =? THEN 1 
+              ELSE 0 
+            END AS isSender
+          FROM messages m
+          WHERE (m.sender_id =? AND m.receiver_id =?) 
+             OR (m.sender_id =? AND m.receiver_id =?)
+          ORDER BY m.timestamp DESC
+      `;
+  db.query(
+    sql,
+    [user1_id, user1_id, user2_id, user2_id, user1_id],
+    (err, results) => {
+      if (err) return callback(err);
+      results = results.map((result) => ({
+        ...result,
+        isSender: result.isSender === 1,
+      }));
+      callback(null, results);
+    }
+  );
 };
-
 // Fetch unique conversations for a user
 const getConversations = (user_id, callback) => {
   const sql = `

@@ -15,9 +15,7 @@ const app = express();
 app.use(bodyParser.json());
 
 //Add status of the user profile
-//Add status of the user profile
-//Add aprove status of the charity page
-//Update the status of the charity page
+//Update status of the user profile
 
 // Routes
 app.use(userRoutes);

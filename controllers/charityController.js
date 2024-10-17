@@ -7,14 +7,26 @@ const createCharityPage = (req, res) => {
 
   const userId = req.currentUid;
 
+  const profileImage = req.files?.profile_image?.[0]?.location || null;
+  const coverImage = req.files?.cover_image?.[0]?.location || null;
   const frontImage = req.files?.front_image?.[0]?.location || null;
   const backImage = req.files?.back_image?.[0]?.location || null;
 
+  pageData.profile_image = profileImage;
+  pageData.cover_image = coverImage;
   pageData.front_image = frontImage;
   pageData.back_image = backImage;
   pageData.userId = userId;
 
-  if (!name || !location || !description || !frontImage || !backImage) {
+  if (
+    !name ||
+    !location ||
+    !description ||
+    !frontImage ||
+    !backImage ||
+    !profileImage ||
+    !coverImage
+  ) {
     return res.status(400).json({ error: "All fields are required" });
   }
 
@@ -38,6 +50,8 @@ const updateCharityPage = (req, res) => {
     name,
     location,
     description,
+    profile_image: req.files?.profile_image?.[0]?.location || null,
+    cover_image: req.files?.cover_image?.[0]?.location || null,
     front_image: req.files?.front_image?.[0]?.location || null,
     back_image: req.files?.back_image?.[0]?.location || null,
   };
@@ -56,6 +70,32 @@ const updateCharityPage = (req, res) => {
         message: "Charity page updated successfully",
         page: result,
       });
+    }
+  });
+};
+
+const activateCharityPage = (req, res) => {
+  const pageId = req.params.id;
+
+  CharityPage.updatePageStatus(pageId, "active", (err, result) => {
+    if (err) {
+      res.status(500).json({ error: "Failed to activate charity page" });
+    } else {
+      res.status(200).json({ message: "Charity page activated successfully" });
+    }
+  });
+};
+
+const deactivateCharityPage = (req, res) => {
+  const pageId = req.params.id;
+
+  CharityPage.updatePageStatus(pageId, "inactive", (err, result) => {
+    if (err) {
+      res.status(500).json({ error: "Failed to deactivate charity page" });
+    } else {
+      res
+        .status(200)
+        .json({ message: "Charity page deactivated successfully" });
     }
   });
 };
@@ -86,36 +126,59 @@ const getCharityPageById = (req, res) => {
 
 const getCharityPagesByUserId = (req, res) => {
   const userId = req.params.userId;
+  const pageSize = parseInt(req.query.limit, 10) || 10; // Default limit to 10
+  const page = parseInt(req.query.page, 10) || 1; // Default page to 1
+  const search = req.query.search || null;
+  const isInactive = req.query.inactive || false;
 
-  CharityPage.getPagesByUserId(userId, (err, result) => {
-    if (err) {
-      res.status(500).json({ error: "Failed to get charity pages" });
-    } else {
-      res.status(200).json({ pages: result });
+  CharityPage.getPagesByUserId(
+    { userId, page, pageSize, search, isInactive },
+    (err, result) => {
+      if (err) {
+        res.status(500).json({ error: "Failed to get charity pages" });
+      } else {
+        res.status(200).json({ pages: result });
+      }
     }
-  });
+  );
 };
 
 const getCurrentUserCharityPages = (req, res) => {
   const userId = req.currentUid;
+  const pageSize = parseInt(req.query.limit, 10) || 10; // Default limit to 10
+  const page = parseInt(req.query.page, 10) || 1; // Default page to 1
+  const search = req.query.search || null;
+  const isInactive = req.query.inactive || false;
 
-  CharityPage.getPagesByUserId(userId, (err, result) => {
-    if (err) {
-      res.status(500).json({ error: "Failed to get charity pages" });
-    } else {
-      res.status(200).json({ pages: result });
+  CharityPage.getPagesByUserId(
+    { userId, page, pageSize, search, isInactive },
+    (err, result) => {
+      if (err) {
+        res.status(500).json({ error: "Failed to get charity pages" });
+      } else {
+        res.status(200).json({ pages: result });
+      }
     }
-  });
+  );
 };
 
 const getAllCharitiePages = (req, res) => {
-  CharityPage.getPages((err, result) => {
-    if (err) {
-      res.status(500).json({ error: "Failed to get charity pages" });
-    } else {
-      res.status(200).json({ pages: result });
+  const excludeId = req.currentUid || null;
+  const pageSize = parseInt(req.query.limit, 10) || 10; // Default limit to 10
+  const page = parseInt(req.query.page, 10) || 1; // Default page to 1
+  const search = req.query.search || null;
+  const isInactive = req.query.inactive || false;
+
+  CharityPage.getPages(
+    { page, pageSize, search, excludeId, isInactive },
+    (err, result) => {
+      if (err) {
+        res.status(500).json({ error: "Failed to get charity pages" });
+      } else {
+        res.status(200).json({ pages: result });
+      }
     }
-  });
+  );
 };
 
 const followCharityPage = (req, res) => {
@@ -167,4 +230,6 @@ module.exports = {
   followCharityPage,
   unfollowCharityPage,
   getCharityPageFollowers,
+  activateCharityPage,
+  deactivateCharityPage,
 };
