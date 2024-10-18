@@ -248,13 +248,9 @@ const CharityPage = {
     // Add parameters for follows.user_id, pageSize, and offset
     queryParams.push(excludeId, pageSize, offset);
 
-    // Debug: Print the query and parameters
-    console.log(query, queryParams);
-
     // Execute query and handle results
     db.query(query, queryParams, (err, result) => {
       if (err) {
-        console.log(err);
         callback(err, null);
       } else {
         // Format the result to include the `isFollower` field

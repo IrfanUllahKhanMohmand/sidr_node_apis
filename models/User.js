@@ -65,7 +65,6 @@ const User = {
       if (error) {
         return callback(error);
       }
-
       if (results.length > 0) {
         const user = results[0];
         // Assign counts directly

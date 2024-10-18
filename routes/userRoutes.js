@@ -31,7 +31,7 @@ router.put(
 );
 router.delete("/users/:id", verifyToken, deleteUser);
 router.get("/users/:id", verifyToken, getUserById);
-router.get("/users-me", getCurrentUser);
+router.get("/users-me", verifyToken, getCurrentUser);
 router.get("/users", getAllUsers);
 router.get("/search/users", verifyToken, searchUsers);
 router.get("/users-except-me", verifyToken, getAllExceptUser);

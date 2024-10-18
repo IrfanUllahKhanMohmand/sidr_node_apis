@@ -8,6 +8,7 @@ const charityPageRoutes = require("./routes/charityPagesRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const donationRoutes = require("./routes/donationRoutes");
 const reportRoutes = require("./routes/reportRoutes");
+const fcmTokenRoutes = require("./routes/fcmRoutes");
 
 require("dotenv").config();
 
@@ -24,6 +25,7 @@ app.use(charityPageRoutes);
 app.use(messageRoutes);
 app.use(donationRoutes);
 app.use(reportRoutes);
+app.use(fcmTokenRoutes);
 
 const PORT = 5001;
 app.listen(PORT, () => {
