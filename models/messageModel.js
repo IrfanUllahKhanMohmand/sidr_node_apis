@@ -29,7 +29,7 @@ const getMessages = (user1_id, user2_id, callback) => {
           FROM messages m
           WHERE (m.sender_id =? AND m.receiver_id =?) 
              OR (m.sender_id =? AND m.receiver_id =?)
-          ORDER BY m.timestamp DESC
+          ORDER BY m.timestamp ASC
       `;
   db.query(
     sql,
@@ -51,19 +51,22 @@ const getConversations = (user_id, callback) => {
         u.id AS user_id,
         u.name,
         u.profile_image,
-        m.message AS last_message,
+        CASE 
+          WHEN m.type IN ('image', 'video') THEN m.type
+          ELSE m.message 
+        END AS last_message,
         m.timestamp AS message_time
       FROM (
         SELECT 
           IF(sender_id = ?, receiver_id, sender_id) AS conversation_with,
-          MAX(id) AS last_message_id
-        FROM messages
+          MAX(m.timestamp) AS last_message_time
+        FROM messages AS m
         WHERE sender_id = ? OR receiver_id = ?
         GROUP BY conversation_with
       ) AS conv
-      JOIN messages AS m ON m.id = conv.last_message_id
+      JOIN messages AS m ON m.timestamp = conv.last_message_time
       JOIN users AS u ON u.id = conv.conversation_with
-      ORDER BY m.timestamp DESC
+      ORDER BY m.timestamp ASC
     `;
 
   db.query(sql, [user_id, user_id, user_id], (err, results) => {
