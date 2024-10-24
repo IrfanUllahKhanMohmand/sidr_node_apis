@@ -67,8 +67,9 @@ const deleteUser = (req, res) => {
 
 const getUserById = (req, res) => {
   const userId = req.params.id;
+  const currentUserId = req.currentUid;
 
-  User.findById(userId, (err, result) => {
+  User.findById(userId, currentUserId, (err, result) => {
     // Handle database errors
     if (err) {
       return res.status(500).json({ error: "Database error" });

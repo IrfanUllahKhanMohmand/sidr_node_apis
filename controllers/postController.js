@@ -69,7 +69,9 @@ const deletePost = (req, res) => {
 const getPostById = (req, res) => {
   const postId = req.params.id;
 
-  Post.findById(postId, (err, result) => {
+  const currentUserId = req.currentUid;
+
+  Post.findById(postId, currentUserId, (err, result) => {
     if (err) return res.status(500).json({ error: "Database error" });
     if (result.length === 0)
       return res.status(404).json({ error: "Post not found" });

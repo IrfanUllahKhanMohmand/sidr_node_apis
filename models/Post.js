@@ -54,7 +54,12 @@ const Post = {
                SELECT 1 
                FROM followers 
                WHERE follower_id = ? AND following_id = u.id
-             ) AS isFollower
+             ) AS isFollower,
+             EXISTS (
+               SELECT 1 
+               FROM likes 
+               WHERE postId = p.id AND userId = ?
+             ) AS isLiked
       FROM posts p 
       LEFT JOIN likes l ON p.id = l.postId 
       LEFT JOIN comments c ON p.id = c.postId 
@@ -64,41 +69,56 @@ const Post = {
       ORDER BY p.createdAt DESC
       LIMIT ? OFFSET ?`;
 
-    // Execute the query with currentUserId, userId, limit, and offset
-    db.query(query, [currentUserId, userId, limit, offset], (err, results) => {
-      if (err) {
-        return callback(err);
+    // Execute the query with currentUserId (for both isFollower and isLiked checks), userId, limit, and offset
+    db.query(
+      query,
+      [currentUserId, currentUserId, userId, limit, offset],
+      (err, results) => {
+        if (err) {
+          return callback(err);
+        }
+
+        // Format results to include user info, isFollower, and isLiked fields
+        const formattedResults = results.map((post) => ({
+          post: {
+            id: post.id,
+            title: post.title,
+            content: post.content,
+            image_path: post.image_path,
+            createdAt: post.createdAt,
+            likes: post.likes,
+            commentCount: post.commentCount,
+            isLiked: Boolean(post.isLiked),
+          },
+          user: {
+            id: post.userId,
+            name: post.name,
+            profile_image: post.profile_image,
+            isFollower: Boolean(post.isFollower),
+          },
+        }));
+
+        callback(null, formattedResults); // Return posts with user info, isFollower, and isLiked fields
       }
-
-      // Format results to include user info and isFollower field
-      const formattedResults = results.map((post) => ({
-        post: {
-          id: post.id,
-          title: post.title,
-          content: post.content,
-          image_path: post.image_path,
-          createdAt: post.createdAt,
-          likes: post.likes,
-          commentCount: post.commentCount,
-        },
-        user: {
-          id: post.userId,
-          name: post.name,
-          profile_image: post.profile_image,
-          isFollower: Boolean(post.isFollower),
-        },
-      }));
-
-      callback(null, formattedResults); // Return posts with user info including isFollower field
-    });
+    );
   },
 
-  findById: (id, callback) => {
+  findById: (id, currentUserId, callback) => {
     const postQuery = `
       SELECT p.*, 
              u.name AS userName, 
              u.profile_image AS userProfileImage, 
-             COUNT(DISTINCT l.id) AS likes 
+             COUNT(DISTINCT l.id) AS likes,
+             EXISTS (
+               SELECT 1 
+               FROM likes 
+               WHERE postId = p.id AND userId = ?
+             ) AS isLiked,
+             EXISTS (
+               SELECT 1 
+               FROM followers 
+               WHERE follower_id = ? AND following_id = u.id
+             ) AS isFollower
       FROM posts p 
       LEFT JOIN likes l ON p.id = l.postId 
       LEFT JOIN users u ON p.userId = u.id
@@ -112,66 +132,93 @@ const Post = {
       WHERE postId = ?
     `;
 
-    db.query(postQuery, [id], (error, postResults) => {
-      if (error) {
-        return callback(error, null);
-      }
-
-      if (postResults.length === 0) {
-        return callback(null, []);
-      }
-
-      const post = postResults[0];
-
-      db.query(commentsQuery, [id], (error, commentResults) => {
+    // Execute the post query first
+    db.query(
+      postQuery,
+      [currentUserId, currentUserId, id],
+      (error, postResults) => {
         if (error) {
           return callback(error, null);
         }
 
-        // Structure the final output
-        const formattedPost = {
-          post: {
-            id: post.id,
-            title: post.title,
-            content: post.content,
-            image_path: post.image_path,
-            createdAt: post.createdAt,
-            likes: post.likes,
-            comments: commentResults, // Keeping comments as is
-          },
-          user: {
-            id: post.userId,
-            name: post.userName,
-            profile_image: post.userProfileImage,
-          },
-        };
+        if (postResults.length === 0) {
+          return callback(null, []);
+        }
 
-        callback(null, [formattedPost]); // Wrapping in array to match your existing structure
-      });
-    });
+        const post = postResults[0];
+
+        // Execute the comments query after fetching the post
+        db.query(commentsQuery, [id], (error, commentResults) => {
+          if (error) {
+            return callback(error, null);
+          }
+
+          // Structure the final output
+          const formattedPost = {
+            post: {
+              id: post.id,
+              title: post.title,
+              content: post.content,
+              image_path: post.image_path,
+              createdAt: post.createdAt,
+              likes: post.likes,
+              isLiked: Boolean(post.isLiked), // Added isLiked field
+              comments: commentResults, // Keeping comments as is
+            },
+            user: {
+              id: post.userId,
+              name: post.userName,
+              profile_image: post.userProfileImage,
+              isFollower: Boolean(post.isFollower), // Added isFollower field
+            },
+          };
+
+          callback(null, [formattedPost]); // Wrapping in array to match your existing structure
+        });
+      }
+    );
   },
 
   // findAll function with optional currentUserId exclusion and search filter
   findAll: ({ currentUserId, search, limit, offset }, callback) => {
     let query = `
-    SELECT p.*, 
-           COUNT(DISTINCT l.id) AS likes, 
-           COUNT(DISTINCT c.id) AS commentCount,
-           u.name AS userName,
-           u.profile_image AS userProfileImage,
-           EXISTS (
-             SELECT 1 
-             FROM followers 
-             WHERE follower_id = ? AND following_id = u.id
-           ) AS isFollower
-    FROM posts p 
-    LEFT JOIN likes l ON p.id = l.postId 
-    LEFT JOIN comments c ON p.id = c.postId 
-    LEFT JOIN users u ON p.userId = u.id`;
+      SELECT p.*, 
+             COUNT(DISTINCT l.id) AS likes, 
+             COUNT(DISTINCT c.id) AS commentCount,
+             u.name AS userName,
+             u.profile_image AS userProfileImage,
+             EXISTS (
+               SELECT 1 
+               FROM followers 
+               WHERE follower_id = ? AND following_id = u.id
+             ) AS isFollower`;
+
+    // Add the isLiked check only if currentUserId is provided
+    if (currentUserId) {
+      query += `,
+             EXISTS (
+               SELECT 1 
+               FROM likes 
+               WHERE postId = p.id AND userId = ?
+             ) AS isLiked`;
+    } else {
+      query += `, 0 AS isLiked`; // Default to 0 (false) if no currentUserId
+    }
+
+    query += `
+      FROM posts p 
+      LEFT JOIN likes l ON p.id = l.postId 
+      LEFT JOIN comments c ON p.id = c.postId 
+      LEFT JOIN users u ON p.userId = u.id`;
 
     // Dynamic query construction based on optional parameters
     let conditions = [];
     let queryParams = [currentUserId || null]; // Always needed for follower check
+
+    // Add currentUserId again for isLiked check if present
+    if (currentUserId) {
+      queryParams.push(currentUserId);
+    }
 
     // Exclude current user's posts if currentUserId is provided
     if (currentUserId) {
@@ -193,6 +240,8 @@ const Post = {
     // Add pagination
     query += " GROUP BY p.id, u.id, u.name, u.profile_image";
     query += " ORDER BY p.createdAt DESC LIMIT ? OFFSET ?";
+
+    // Pagination parameters
     queryParams.push(limit, offset);
 
     // Execute the query with dynamically ordered parameters
@@ -205,7 +254,7 @@ const Post = {
         return callback(null, []); // No results found
       }
 
-      // Format results with post and user details
+      // Format results with post and user details including isLiked and isFollower
       const formattedResults = postResults.map((post) => ({
         post: {
           id: post.id,
@@ -215,6 +264,7 @@ const Post = {
           createdAt: post.createdAt,
           likes: post.likes,
           commentCount: post.commentCount,
+          isLiked: Boolean(post.isLiked), // Added isLiked field
         },
         user: {
           id: post.userId,

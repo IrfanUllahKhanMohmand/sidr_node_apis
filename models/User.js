@@ -53,23 +53,41 @@ const User = {
     });
   },
 
-  findById: (id, callback) => {
-    const query = `
+  findById: (id, currentUserId, callback) => {
+    let query = `
         SELECT u.*, 
-               (SELECT COUNT(f.follower_id) FROM followers f WHERE f.following_id = ?) AS followers_count,
-               (SELECT COUNT(f.following_id) FROM followers f WHERE f.follower_id = ?) AS followings_count
+               (SELECT COUNT(f.follower_id) FROM followers f WHERE f.following_id = u.id) AS followers_count,
+               (SELECT COUNT(f.following_id) FROM followers f WHERE f.follower_id = u.id) AS followings_count`;
+
+    // Add the isFollower check if currentUserId is provided
+    if (currentUserId) {
+      query += `,
+               EXISTS (
+                 SELECT 1 
+                 FROM followers 
+                 WHERE follower_id = ? AND following_id = u.id
+               ) AS isFollower`;
+    } else {
+      query += `, 0 AS isFollower`; // Default to 0 (false) if no currentUserId
+    }
+
+    query += `
         FROM users u 
         WHERE u.id = ?`;
 
-    db.query(query, [id, id, id], (error, results) => {
+    // Build query parameters array
+    const queryParams = currentUserId ? [currentUserId, id] : [id];
+
+    db.query(query, queryParams, (error, results) => {
       if (error) {
         return callback(error);
       }
       if (results.length > 0) {
         const user = results[0];
-        // Assign counts directly
+        // Assign counts and isFollower directly
         user.followers_count = user.followers_count || 0; // Default to 0 if null
         user.followings_count = user.followings_count || 0; // Default to 0 if null
+        user.isFollower = Boolean(user.isFollower); // Convert to boolean
         callback(null, user);
       } else {
         callback(null, null); // No user found
@@ -80,32 +98,57 @@ const User = {
   // Extend findAll to handle exclusion and search parameters
   findAll: ({ limit, offset, search, excludeId }, callback) => {
     let query = `
-    SELECT u.*, 
-           (SELECT COUNT(f.follower_id) FROM followers f WHERE f.following_id = u.id) AS followers_count,
-           (SELECT COUNT(f.following_id) FROM followers f WHERE f.follower_id = u.id) AS followings_count
-    FROM users u`;
+      SELECT u.*, 
+             (SELECT COUNT(f.follower_id) FROM followers f WHERE f.following_id = u.id) AS followers_count,
+             (SELECT COUNT(f.following_id) FROM followers f WHERE f.follower_id = u.id) AS followings_count`;
+
+    // Add the isFollower check using excludeId
+    if (excludeId) {
+      query += `,
+             EXISTS (
+               SELECT 1 
+               FROM followers 
+               WHERE follower_id = ? AND following_id = u.id
+             ) AS isFollower`;
+    } else {
+      query += `, 0 AS isFollower`; // Default to 0 (false) if no excludeId
+    }
+
+    query += `
+      FROM users u`;
 
     const queryParams = [];
     let conditions = [];
 
+    // Exclude specific user (current user) if excludeId is provided
     if (excludeId) {
       conditions.push("u.id != ?");
-      queryParams.push(excludeId); // Push excludeId first
-    }
-    if (search) {
-      conditions.push("(u.name LIKE ? OR u.email LIKE ?)");
-      queryParams.push(`%${search}%`, `%${search}%`); // Then add search terms
+      queryParams.push(excludeId);
     }
 
+    // Search users by name or email if search is provided
+    if (search) {
+      conditions.push("(u.name LIKE ? OR u.email LIKE ?)");
+      queryParams.push(`%${search}%`, `%${search}%`);
+    }
+
+    // Append WHERE conditions if any
     if (conditions.length > 0) {
       query += ` WHERE ${conditions.join(" AND ")}`;
     }
 
-    query += " LIMIT ? OFFSET ?"; // Add pagination
+    // Add pagination
+    query += " LIMIT ? OFFSET ?";
 
-    queryParams.push(limit, offset); // Finally add limit and offset
+    // Add limit and offset to query parameters
+    queryParams.push(limit, offset);
 
-    // Execute query with the correctly ordered parameters
+    // If excludeId is provided, add it to the front of the parameters (for isFollower check)
+    if (excludeId) {
+      queryParams.unshift(excludeId); // Ensure it's used for the follower check
+    }
+
+    // Execute query with the correct parameters
     db.query(query, queryParams, (error, results) => {
       if (error) {
         return callback(error);
@@ -114,6 +157,7 @@ const User = {
       const usersWithFollowersAndFollowingsCount = results.map((user) => {
         user.followers_count = user.followers_count || 0;
         user.followings_count = user.followings_count || 0;
+        user.isFollower = Boolean(user.isFollower); // Convert to boolean
         return user;
       });
 
