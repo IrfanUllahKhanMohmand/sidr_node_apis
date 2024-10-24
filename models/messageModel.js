@@ -29,7 +29,7 @@ const getMessages = (user1_id, user2_id, callback) => {
           FROM messages m
           WHERE (m.sender_id =? AND m.receiver_id =?) 
              OR (m.sender_id =? AND m.receiver_id =?)
-          ORDER BY m.timestamp ASC
+          ORDER BY m.timestamp DESC
       `;
   db.query(
     sql,
@@ -66,7 +66,7 @@ const getConversations = (user_id, callback) => {
       ) AS conv
       JOIN messages AS m ON m.timestamp = conv.last_message_time
       JOIN users AS u ON u.id = conv.conversation_with
-      ORDER BY m.timestamp ASC
+      ORDER BY m.timestamp DESC
     `;
 
   db.query(sql, [user_id, user_id, user_id], (err, results) => {
