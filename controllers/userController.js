@@ -87,7 +87,7 @@ const getUserById = (req, res) => {
 
 const getCurrentUser = (req, res) => {
   const userId = req.currentUid;
-  User.findById(userId, (err, result) => {
+  User.findById(userId, userId, (err, result) => {
     // Handle database errors
     if (err) {
       return res.status(500).json({ error: "Database error" });
