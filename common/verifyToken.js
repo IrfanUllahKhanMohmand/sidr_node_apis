@@ -1,13 +1,15 @@
 const admin = require("firebase-admin");
 const axios = require("axios");
+const dotenv = require("dotenv");
 var serviceAccount = require("../serviceAccountKey.json");
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
+dotenv.config();
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCRSGRAICirftPG05ZOm_JyFDMM2VuKKiA",
-  authDomain: "sidrapp-2ef3e.firebaseio.com",
+  apiKey: process.env.FIREBASRE_API_KEY,
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
 };
 
 const User = require("../models/User");
