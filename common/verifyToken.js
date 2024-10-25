@@ -1,8 +1,14 @@
 const admin = require("firebase-admin");
+const axios = require("axios");
 var serviceAccount = require("../serviceAccountKey.json");
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCRSGRAICirftPG05ZOm_JyFDMM2VuKKiA",
+  authDomain: "sidrapp-2ef3e.firebaseio.com",
+};
 
 const User = require("../models/User");
 
@@ -50,4 +56,36 @@ const verifyToken = (req, res, next) => {
     });
 };
 
-module.exports = { verifyToken };
+const createToken = async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(422).json({
+      email: "Email is required",
+      password: "Password is required",
+    });
+  }
+  try {
+    const response = await axios.post(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${firebaseConfig.apiKey}`,
+      {
+        email,
+        password,
+        returnSecureToken: true,
+      }
+    );
+
+    const idToken = response.data.idToken;
+    // You can now use the idToken to authenticate the user on your server
+    res.status(200).json({ message: "User logged in successfully", idToken });
+  } catch (error) {
+    console.error("Error logging in:", error);
+    if (error.response) {
+      res.status(401).json({ message: "Invalid email or password" });
+    } else {
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  }
+};
+
+module.exports = { verifyToken, createToken };
