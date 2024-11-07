@@ -4,7 +4,7 @@ const { request } = require("express");
 const User = require("../models/User");
 
 const createUser = async (req, res) => {
-  const { id, name, email } = req.body;
+  const { id, name, email, profile_image } = req.body;
   const profileImage = req.file ? req.file.location : null;
 
   if (!id || !name || !email) {
@@ -12,10 +12,10 @@ const createUser = async (req, res) => {
   }
 
   try {
-    await User.create(id, name, email, profileImage);
+    await User.create(id, name, email, profileImage ?? profile_image);
     return res
       .status(201)
-      .json({ id, name, email, profile_image: profileImage });
+      .json({ id, name, email, profile_image: profileImage ?? profile_image });
   } catch (err) {
     if (err.code === "ER_DUP_ENTRY") {
       return res.status(400).json({ error: "Email already exists" });
@@ -26,7 +26,7 @@ const createUser = async (req, res) => {
 
 const updateUser = (req, res) => {
   const userId = req.params.id;
-  const { name, email } = req.body;
+  const { name, email, profile_image } = req.body;
   const profileImage = req.file ? req.file.location : null;
 
   // Call the update method with userId and parameters
@@ -34,7 +34,7 @@ const updateUser = (req, res) => {
     userId,
     name || null,
     email || null,
-    profileImage,
+    profileImage || profile_image || null,
     (err, result) => {
       if (err) return res.status(500).json({ error: "Database error" });
       if (result.affectedRows === 0)

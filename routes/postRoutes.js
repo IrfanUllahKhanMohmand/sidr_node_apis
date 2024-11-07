@@ -21,7 +21,6 @@ const {
 const router = express.Router();
 const { upload } = require("../common/imageUploader");
 const { verifyToken } = require("../common/verifyToken");
-const { getCurrentUser } = require("../controllers/userController");
 
 router.post("/posts", upload.single("image"), verifyToken, createPost);
 router.put("/posts/:id", upload.single("image"), verifyToken, updatePost);

@@ -1,6 +1,7 @@
 const express = require("express");
 
 const bodyParser = require("body-parser");
+const cors = require("cors");
 
 const userRoutes = require("./routes/userRoutes");
 const postRoutes = require("./routes/postRoutes");
@@ -14,6 +15,7 @@ const tokenGenerateRoute = require("./routes/tokenGenerateRoute");
 require("dotenv").config();
 
 const app = express();
+app.use(cors());
 app.use(bodyParser.json());
 
 //Add status of the user profile
