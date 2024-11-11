@@ -1,6 +1,5 @@
 // models/Report.js
 const db = require("../config/db");
-const { findAll } = require("./User");
 
 const Report = {
   create: (report, callback) => {
@@ -18,29 +17,62 @@ const Report = {
     );
   },
   findByPostId: ({ postId, reportStatus }, callback) => {
+    let query = `
+        SELECT reports.*, users.id AS user_id, users.name AS user_name, users.email AS user_email, 
+               users.profile_image AS user_profile_image, posts.id AS post_id, posts.userId AS post_userId, 
+               posts.image_path AS post_image_path, posts.title AS post_title, posts.content AS post_content, 
+               posts.createdAt AS post_createdAt
+        FROM reports
+        LEFT JOIN users ON reports.userId = users.id
+        LEFT JOIN posts ON reports.postId = posts.id
+        WHERE reports.postId = ?
+    `;
+
+    const queryParams = [postId];
+
     if (reportStatus) {
-      const query = `SELECT * FROM reports WHERE postId = ? AND status = ?`;
-      db.query(query, [postId, reportStatus], callback);
-    } else {
-      const query = `SELECT * FROM reports WHERE postId = ?`;
-      db.query(query, [postId], callback);
+      query += ` AND reports.status = ?`;
+      queryParams.push(reportStatus);
     }
+
+    db.query(query, queryParams, callback);
   },
+
   findByUserId: ({ userId, reportStatus }, callback) => {
+    let query = `
+        SELECT reports.*, users.id AS user_id, users.name AS user_name, users.email AS user_email, 
+               users.profile_image AS user_profile_image, posts.id AS post_id, posts.userId AS post_userId, 
+               posts.image_path AS post_image_path, posts.title AS post_title, posts.content AS post_content, 
+               posts.createdAt AS post_createdAt
+        FROM reports
+        LEFT JOIN users ON reports.userId = users.id
+        LEFT JOIN posts ON reports.postId = posts.id
+        WHERE reports.userId = ?
+    `;
+
+    const queryParams = [userId];
+
     if (reportStatus) {
-      const query = `SELECT * FROM reports WHERE userId = ? AND status = ?`;
-      db.query(query, [userId, reportStatus], callback);
-    } else {
-      const query = `SELECT * FROM reports WHERE userId = ?`;
-      db.query(query, [userId], callback);
+      query += ` AND reports.status = ?`;
+      queryParams.push(reportStatus);
     }
+
+    db.query(query, queryParams, callback);
   },
+
   findAll: ({ reportStatus }, callback) => {
+    let query = `
+        SELECT reports.*,users.id AS user_id, users.name AS user_name, users.email AS user_email, users.profile_image AS user_profile_image, 
+              posts.id AS post_id, posts.userId AS post_userId, posts.image_path AS post_image_path, posts.title AS post_title, posts.content AS post_content,posts.createdAt AS post_createdAt
+        FROM reports
+        LEFT JOIN users ON reports.userId = users.id
+        LEFT JOIN posts ON reports.postId = posts.id
+    `;
+
     if (reportStatus) {
-      const query = `SELECT * FROM reports WHERE status = ?`;
+      query += ` WHERE reports.status = ?`;
       db.query(query, [reportStatus], callback);
     } else {
-      const query = `SELECT * FROM reports`;
       db.query(query, callback);
     }
   },

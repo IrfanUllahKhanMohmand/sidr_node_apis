@@ -1,6 +1,7 @@
 // controllers/reportController.js
 const Report = require("../models/Report");
 const crypto = require("crypto");
+const admin = require("firebase-admin");
 
 // Report a post
 exports.reportPost = (req, res) => {
@@ -25,44 +26,158 @@ exports.reportPost = (req, res) => {
 };
 
 // Get reports by post ID
-exports.getReportsByPostId = (req, res) => {
+exports.getReportsByPostId = async (req, res) => {
   const { postId } = req.params;
   const { reportStatus } = req.query;
 
-  Report.findByPostId({ postId, reportStatus }, (err, results) => {
+  Report.findByPostId({ postId, reportStatus }, async (err, results) => {
     if (err) {
       return res
         .status(500)
         .json({ message: "Error fetching reports", error: err });
     }
-    res.status(200).json({ reports: results });
+
+    // Format the results, including checking if the user is disabled
+    const formattedResults = await Promise.all(
+      results.map(async (report) => {
+        // Check if the user is disabled
+        const firebaseUser = await admin.auth().getUser(report.userId);
+        const isDisabled = firebaseUser.disabled;
+
+        return {
+          report: {
+            id: report.id,
+            postId: report.postId,
+            userId: report.userId,
+            reporting_user_id: report.reporting_user_id,
+            status: report.status,
+            reason: report.reason,
+          },
+          user: {
+            id: report.user_id,
+            name: report.user_name,
+            email: report.user_email,
+            profile_image: report.user_profile_image,
+            isDisabled: isDisabled, // Add the isDisabled field here
+          },
+          post: {
+            id: report.post_id,
+            userId: report.post_userId,
+            image_path: report.post_image_path,
+            title: report.post_title,
+            content: report.post_content,
+            createdAt: report.post_createdAt,
+          },
+        };
+      })
+    );
+
+    // Send the response with formatted data
+    res.status(200).json({ reports: formattedResults });
   });
 };
 
 // Get reports by user ID
-exports.getReportsByUserId = (req, res) => {
+exports.getReportsByUserId = async (req, res) => {
   const { userId } = req.params;
   const { reportStatus } = req.query;
-  Report.findByUserId({ userId, reportStatus }, (err, results) => {
+
+  Report.findByUserId({ userId, reportStatus }, async (err, results) => {
     if (err) {
       return res
         .status(500)
         .json({ message: "Error fetching reports", error: err });
     }
-    res.status(200).json({ reports: results });
+
+    // Format the results, including checking if the user is disabled
+    const formattedResults = await Promise.all(
+      results.map(async (report) => {
+        // Check if the user is disabled
+        const firebaseUser = await admin.auth().getUser(report.userId);
+        const isDisabled = firebaseUser.disabled;
+
+        return {
+          report: {
+            id: report.id,
+            postId: report.postId,
+            userId: report.userId,
+            reporting_user_id: report.reporting_user_id,
+            status: report.status,
+            reason: report.reason,
+          },
+          user: {
+            id: report.user_id,
+            name: report.user_name,
+            email: report.user_email,
+            profile_image: report.user_profile_image,
+            isDisabled: isDisabled, // Add the isDisabled field here
+          },
+          post: {
+            id: report.post_id,
+            userId: report.post_userId,
+            image_path: report.post_image_path,
+            title: report.post_title,
+            content: report.post_content,
+            createdAt: report.post_createdAt,
+          },
+        };
+      })
+    );
+
+    // Send the response with formatted data
+    res.status(200).json({ reports: formattedResults });
   });
 };
 
 // Get all reports
-exports.getAllReports = (req, res) => {
+exports.getAllReports = async (req, res) => {
   const { reportStatus } = req.query;
-  Report.findAll({ reportStatus }, (err, results) => {
+
+  // Fetch reports based on the report status
+  Report.findAll({ reportStatus }, async (err, results) => {
     if (err) {
       return res
         .status(500)
         .json({ message: "Error fetching reports", error: err });
     }
-    res.status(200).json({ reports: results });
+
+    // Use Promise.all to wait for asynchronous `isUserDisabled` checks
+    const formattedResults = await Promise.all(
+      results.map(async (report) => {
+        // Check if the user is disabled
+        const firebaseUser = await admin.auth().getUser(report.userId);
+        const isDisabled = firebaseUser.disabled;
+
+        return {
+          report: {
+            id: report.id,
+            postId: report.postId,
+            userId: report.userId,
+            reporting_user_id: report.reporting_user_id,
+            status: report.status,
+            reason: report.reason,
+          },
+          user: {
+            id: report.user_id,
+            name: report.user_name,
+            email: report.user_email,
+            profile_image: report.user_profile_image,
+            isDisabled: isDisabled, // Add the isDisabled field here
+          },
+          post: {
+            id: report.post_id,
+            userId: report.post_userId,
+            image_path: report.post_image_path,
+            title: report.post_title,
+            content: report.post_content,
+            createdAt: report.post_createdAt,
+          },
+        };
+      })
+    );
+
+    // Send the response with formatted data
+    res.status(200).json({ reports: formattedResults });
   });
 };
 

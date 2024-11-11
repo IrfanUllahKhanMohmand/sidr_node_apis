@@ -58,6 +58,56 @@ const verifyToken = (req, res, next) => {
     });
 };
 
+//List all users in firebase auth
+const listAllUsers = async (req, res) => {
+  try {
+    const listUsers = await admin.auth().listUsers();
+    const users = listUsers.users.map((user) => {
+      return {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+        emailVerified: user.emailVerified,
+        disabled: user.disabled,
+        metadata: user.metadata,
+      };
+    });
+    res.status(200).json(users);
+  } catch (error) {
+    console.error("Error listing users:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+//Enable a user in firebase auth
+const enableUser = async (req, res) => {
+  const { uid } = req.body;
+  try {
+    await admin.auth().updateUser(uid, {
+      disabled: false,
+    });
+    res.status(200).json({ message: "User enabled successfully" });
+  } catch (error) {
+    console.error("Error enabling user:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+//Disable a user in firebase auth
+const disableUser = async (req, res) => {
+  const { uid } = req.body;
+  try {
+    await admin.auth().updateUser(uid, {
+      disabled: true,
+    });
+    res.status(200).json({ message: "User disabled successfully" });
+  } catch (error) {
+    console.error("Error disabling user:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 const createToken = async (req, res) => {
   const { email, password } = req.body;
 
@@ -90,4 +140,10 @@ const createToken = async (req, res) => {
   }
 };
 
-module.exports = { verifyToken, createToken };
+module.exports = {
+  verifyToken,
+  createToken,
+  listAllUsers,
+  enableUser,
+  disableUser,
+};

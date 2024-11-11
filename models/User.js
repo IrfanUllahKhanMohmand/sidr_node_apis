@@ -1,6 +1,5 @@
 // File: models/User.js
-
-const e = require("express");
+const admin = require("firebase-admin");
 const db = require("../config/db");
 
 const User = {
@@ -78,16 +77,22 @@ const User = {
     // Build query parameters array
     const queryParams = currentUserId ? [currentUserId, id] : [id];
 
-    db.query(query, queryParams, (error, results) => {
+    db.query(query, queryParams, async (error, results) => {
       if (error) {
         return callback(error);
       }
       if (results.length > 0) {
         const user = results[0];
+        const firebaseUser = await admin.auth().getUser(user.id);
+
         // Assign counts and isFollower directly
         user.followers_count = user.followers_count || 0; // Default to 0 if null
         user.followings_count = user.followings_count || 0; // Default to 0 if null
         user.isFollower = Boolean(user.isFollower); // Convert to boolean
+
+        // Await the isUserDisabled function to get the disabled status
+        user.isDisabled = firebaseUser.disabled;
+
         callback(null, user);
       } else {
         callback(null, null); // No user found
@@ -149,17 +154,22 @@ const User = {
     }
 
     // Execute query with the correct parameters
-    db.query(query, queryParams, (error, results) => {
+    db.query(query, queryParams, async (error, results) => {
       if (error) {
         return callback(error);
       }
 
-      const usersWithFollowersAndFollowingsCount = results.map((user) => {
-        user.followers_count = user.followers_count || 0;
-        user.followings_count = user.followings_count || 0;
-        user.isFollower = Boolean(user.isFollower); // Convert to boolean
-        return user;
-      });
+      // Process each user with asynchronous `isUserDisabled` check
+      const usersWithFollowersAndFollowingsCount = await Promise.all(
+        results.map(async (user) => {
+          const firebaseUser = await admin.auth().getUser(user.id);
+          user.followers_count = user.followers_count || 0;
+          user.followings_count = user.followings_count || 0;
+          user.isFollower = Boolean(user.isFollower); // Convert to boolean
+          user.isDisabled = firebaseUser.disabled;
+          return user;
+        })
+      );
 
       callback(null, usersWithFollowersAndFollowingsCount);
     });
