@@ -6,6 +6,7 @@ CREATE TABLE users (
     id VARCHAR(255) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
+    phone VARCHAR(255),
     profile_image VARCHAR(255)
 );
 
@@ -26,6 +27,7 @@ CREATE TABLE posts (
     title VARCHAR(255) NOT NULL,
     content TEXT NOT NULL,
     userId VARCHAR(255),
+    is_anonymous BOOLEAN DEFAULT FALSE,
     image_path VARCHAR(255),
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE

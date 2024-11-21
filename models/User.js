@@ -3,13 +3,13 @@ const admin = require("firebase-admin");
 const db = require("../config/db");
 
 const User = {
-  create: (id, name, email, profileImage, callback) => {
+  create: (id, name, email, phone, profileImage, callback) => {
     const query =
-      "INSERT INTO users (id, name, email, profile_image) VALUES (?, ?, ?, ?)";
-    db.query(query, [id, name, email, profileImage], callback);
+      "INSERT INTO users (id, name, email,phone, profile_image) VALUES (?, ?, ?, ?, ?)";
+    db.query(query, [id, name, email, phone, profileImage], callback);
   },
 
-  update: (id, name, email, profileImage, callback) => {
+  update: (id, name, email, phone, profileImage, callback) => {
     const updates = [];
     const values = [];
 
@@ -24,6 +24,10 @@ const User = {
     if (profileImage !== null) {
       updates.push("profile_image = ?");
       values.push(profileImage);
+    }
+    if (phone !== null) {
+      updates.push("phone = ?");
+      values.push(phone);
     }
 
     // If no fields are provided, do not perform an update

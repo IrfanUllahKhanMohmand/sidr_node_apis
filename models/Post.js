@@ -3,13 +3,17 @@
 const db = require("../config/db");
 
 const Post = {
-  create: (id, title, content, userId, imagePath, callback) => {
+  create: (id, title, content, userId, isAnonymous, imagePath, callback) => {
     const query =
-      "INSERT INTO posts (id, title, content, userId, image_path) VALUES (?,?, ?, ?, ?)";
-    db.query(query, [id, title, content, userId, imagePath], callback);
+      "INSERT INTO posts (id, title, content, userId, is_anonymous, image_path) VALUES (?,?,?, ?, ?, ?)";
+    db.query(
+      query,
+      [id, title, content, userId, isAnonymous, imagePath],
+      callback
+    );
   },
 
-  update: (id, title, content, imagePath, callback) => {
+  update: (id, title, content, isAnonymous, imagePath, callback) => {
     const updates = [];
     const values = [];
 
@@ -24,6 +28,11 @@ const Post = {
     if (imagePath !== null) {
       updates.push("image_path = ?");
       values.push(imagePath);
+    }
+
+    if (isAnonymous !== null) {
+      updates.push("is_anonymous = ?");
+      values.push(isAnonymous);
     }
 
     // If no fields are provided, do not perform an update
@@ -84,6 +93,7 @@ const Post = {
             id: post.id,
             title: post.title,
             content: post.content,
+            isAnonymous: Boolean(post.is_anonymous),
             image_path: post.image_path,
             createdAt: post.createdAt,
             likes: post.likes,
@@ -159,6 +169,7 @@ const Post = {
               id: post.id,
               title: post.title,
               content: post.content,
+              isAnonymous: Boolean(post.is_anonymous),
               image_path: post.image_path,
               createdAt: post.createdAt,
               likes: post.likes,
@@ -260,6 +271,7 @@ const Post = {
           id: post.id,
           title: post.title,
           content: post.content,
+          isAnonymous: Boolean(post.is_anonymous),
           image_path: post.image_path,
           createdAt: post.createdAt,
           likes: post.likes,

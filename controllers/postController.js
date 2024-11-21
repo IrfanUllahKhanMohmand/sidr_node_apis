@@ -4,6 +4,7 @@ const Post = require("../models/Post");
 const crypto = require("crypto");
 const createPost = (req, res) => {
   const { title, content } = req.body;
+  const isAnonymous = req.body.isAnonymous === "true" ? 1 : 0;
   const userId = req.currentUid;
   const imagePath = req.file ? req.file.location : null;
   const id = crypto.randomBytes(16).toString("hex");
@@ -14,27 +15,38 @@ const createPost = (req, res) => {
       .json({ error: "Title, content, and userId are required" });
   }
 
-  Post.create(id, title, content, userId, imagePath, (err, result) => {
-    if (err) return res.status(500).json({ error: "Database error" });
-    res.status(201).json({
-      id: id,
-      title: title,
-      content: content,
-      user_id: userId,
-      ...(imagePath && { image_path: imagePath }),
-    });
-  });
+  Post.create(
+    id,
+    title,
+    content,
+    userId,
+    isAnonymous,
+    imagePath,
+    (err, result) => {
+      if (err) return res.status(500).json({ error: "Database error" });
+      res.status(201).json({
+        id: id,
+        title: title,
+        content: content,
+        user_id: userId,
+        is_anonymous: isAnonymous,
+        ...(imagePath && { image_path: imagePath }),
+      });
+    }
+  );
 };
 
 const updatePost = (req, res) => {
   const postId = req.params.id;
   const { title, content } = req.body;
+  const isAnonymous = req.body.isAnonymous === "true" ? 1 : 0;
   const imagePath = req.file ? req.file.location : null;
 
   Post.update(
     postId,
     title || null,
     content || null,
+    isAnonymous || null,
     imagePath,
     (err, result) => {
       if (err) return res.status(500).json({ error: "Database error" });
@@ -46,6 +58,7 @@ const updatePost = (req, res) => {
         id: postId,
         ...(title && { title }), // Only include title if it's provided
         ...(content && { content }), // Only include content if it's provided
+        ...(isAnonymous && { is_anonymous: isAnonymous }), // Only include is_anonymous if it's provided
         ...(imagePath && { image_path: imagePath }), // Only include image_path if it's provided
       };
 
