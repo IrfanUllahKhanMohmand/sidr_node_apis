@@ -219,6 +219,20 @@ const getCharityPageFollowers = (req, res) => {
   });
 };
 
+const getCharityPagesFollowedByUser = (req, res) => {
+  const userId = req.currentUid;
+
+  CharityPage.getFollowedPages(userId, (err, result) => {
+    if (err) {
+      res
+        .status(500)
+        .json({ error: "Failed to get charity pages followed by user" });
+    } else {
+      res.status(200).json({ pages: result });
+    }
+  });
+};
+
 module.exports = {
   createCharityPage,
   updateCharityPage,
@@ -232,4 +246,5 @@ module.exports = {
   getCharityPageFollowers,
   activateCharityPage,
   deactivateCharityPage,
+  getCharityPagesFollowedByUser,
 };

@@ -10,6 +10,21 @@ CREATE TABLE users (
     profile_image VARCHAR(255)
 );
 
+CREATE TABLE charity_pages (
+    id VARCHAR(255) PRIMARY KEY,
+    name VARCHAR(255),
+    location VARCHAR(255),
+    profile_image VARCHAR(255),
+    cover_image VARCHAR(255),
+    front_image VARCHAR(255),
+    back_image VARCHAR(255),
+    description TEXT,
+    status ENUM('active', 'inactive') DEFAULT 'inactive',
+    userId VARCHAR(255),
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+);
+
 
 
 
@@ -26,11 +41,14 @@ CREATE TABLE posts (
     id VARCHAR(255) PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
     content TEXT NOT NULL,
-    userId VARCHAR(255),
+    userId VARCHAR(255) NULL, -- Allow posts from users
+    charityPageId VARCHAR(255) NULL, -- Allow posts from charity pages
     is_anonymous BOOLEAN DEFAULT FALSE,
     image_path VARCHAR(255),
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (charityPageId) REFERENCES charity_pages(id) ON DELETE CASCADE,
+    CHECK (userId IS NOT NULL OR charityPageId IS NOT NULL) -- Ensure either userId or charityPageId must be provided
 );
 
 
@@ -57,20 +75,7 @@ CREATE TABLE comments (
 
 
 
-CREATE TABLE charity_pages (
-    id VARCHAR(255) PRIMARY KEY,
-    name VARCHAR(255),
-    location VARCHAR(255),
-    profile_image VARCHAR(255),
-    cover_image VARCHAR(255),
-    front_image VARCHAR(255),
-    back_image VARCHAR(255),
-    description TEXT,
-    status ENUM('active', 'inactive') DEFAULT 'inactive',
-    userId VARCHAR(255),
-    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
-);
+
 
 CREATE TABLE follows (
     user_id VARCHAR(255),
@@ -87,12 +92,12 @@ CREATE TABLE messages (
     id VARCHAR(255) PRIMARY KEY,
     sender_id VARCHAR(255) NOT NULL,
     receiver_id VARCHAR(255) NOT NULL,
+    receiver_type ENUM('user', 'charity_page') DEFAULT 'user',
     message TEXT,
     type ENUM('text', 'image', 'video', 'voice') DEFAULT 'text',
     media_url VARCHAR(255) DEFAULT NULL,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (sender_id) REFERENCES users(id),
-    FOREIGN KEY (receiver_id) REFERENCES users(id)
+    FOREIGN KEY (sender_id) REFERENCES users(id)
 );
 
 

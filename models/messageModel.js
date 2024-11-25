@@ -4,12 +4,20 @@ const db = require("../config/db");
 
 // Insert a new message into the database
 const createMessage = (messageData, callback) => {
-  const { id, sender_id, receiver_id, message, type, media_url } = messageData;
+  const {
+    id,
+    sender_id,
+    receiver_id,
+    message,
+    type,
+    receiver_type,
+    media_url,
+  } = messageData;
   const sql =
-    "INSERT INTO messages (id, sender_id, receiver_id, message, type, media_url) VALUES (?, ?, ?, ?, ?, ?)";
+    "INSERT INTO messages (id, sender_id, receiver_id, message, type,receiver_type, media_url) VALUES (?,?, ?, ?, ?, ?, ?)";
   db.query(
     sql,
-    [id, sender_id, receiver_id, message, type, media_url],
+    [id, sender_id, receiver_id, message, type, receiver_type, media_url],
     (err, result) => {
       if (err) return callback(err);
       callback(null, result);
@@ -47,32 +55,102 @@ const getMessages = (user1_id, user2_id, callback) => {
 // Fetch unique conversations for a user
 const getConversations = (user_id, callback) => {
   const sql = `
+    WITH last_messages AS (
       SELECT 
-        u.id AS user_id,
-        u.name,
-        u.profile_image,
-        CASE 
-          WHEN m.type IN ('image', 'video') THEN m.type
-          ELSE m.message 
-        END AS last_message,
-        m.timestamp AS message_time
+          conversation_with,
+          type,
+          MAX(timestamp) AS last_message_time
       FROM (
-        SELECT 
-          IF(sender_id = ?, receiver_id, sender_id) AS conversation_with,
-          MAX(m.timestamp) AS last_message_time
-        FROM messages AS m
-        WHERE sender_id = ? OR receiver_id = ?
-        GROUP BY conversation_with
-      ) AS conv
-      JOIN messages AS m ON m.timestamp = conv.last_message_time
-      JOIN users AS u ON u.id = conv.conversation_with
-      ORDER BY m.timestamp DESC
-    `;
+          SELECT 
+              IF(sender_id = ?, receiver_id, sender_id) AS conversation_with,
+              receiver_type AS type,
+              timestamp
+          FROM messages
+          WHERE (sender_id = ? OR receiver_id = ?)
+            AND (
+                (receiver_type = 'user' AND (sender_id = ? OR receiver_id = ?))
+                OR 
+                (receiver_type = 'charity_page' AND receiver_id IN (
+                    SELECT charity_page_id 
+                    FROM follows 
+                    WHERE user_id = ?
+                ))
+            )
+      ) AS subquery
+      GROUP BY conversation_with, type
 
-  db.query(sql, [user_id, user_id, user_id], (err, results) => {
-    if (err) return callback(err);
-    callback(null, results);
-  });
+      UNION ALL
+
+      -- Include charity pages with no messages
+      SELECT 
+          f.charity_page_id AS conversation_with,
+          'charity_page' AS type,
+          NULL AS last_message_time
+      FROM follows AS f
+      WHERE f.user_id = ?
+        AND f.charity_page_id NOT IN (
+            SELECT 
+                IF(sender_id = ?, receiver_id, sender_id)
+            FROM messages
+            WHERE 
+                (sender_id = ? OR receiver_id = ?)
+                AND receiver_type = 'charity_page'
+        )
+    )
+
+    SELECT 
+        lm.conversation_with AS id,
+        lm.type AS receiver_type,
+        CASE 
+            WHEN lm.type = 'user' THEN u.name
+            WHEN lm.type = 'charity_page' THEN cp.name
+        END AS name,
+        CASE 
+            WHEN lm.type = 'user' THEN u.profile_image
+            WHEN lm.type = 'charity_page' THEN cp.profile_image
+        END AS profile_image,
+        COALESCE(
+            (SELECT 
+                 CASE 
+                     WHEN m.type IN ('image', 'video') THEN m.type
+                     ELSE m.message
+                 END 
+             FROM messages m 
+             WHERE m.timestamp = lm.last_message_time 
+               AND ((m.sender_id = lm.conversation_with AND m.receiver_id = ?) 
+                    OR (m.receiver_id = lm.conversation_with AND m.sender_id = ?))),
+            'No messages'
+        ) AS last_message,
+        lm.last_message_time AS message_time
+    FROM last_messages lm
+    LEFT JOIN users u ON lm.conversation_with = u.id AND lm.type = 'user'
+    LEFT JOIN charity_pages cp ON lm.conversation_with = cp.id AND lm.type = 'charity_page'
+    ORDER BY lm.last_message_time DESC;
+  `;
+
+  db.query(
+    sql,
+    [
+      user_id,
+      user_id,
+      user_id,
+      user_id,
+      user_id,
+      user_id,
+      user_id,
+      user_id,
+      user_id,
+      user_id,
+      user_id,
+      user_id,
+      user_id,
+      user_id,
+    ],
+    (err, results) => {
+      if (err) return callback(err);
+      callback(null, results);
+    }
+  );
 };
 
 // Delete a specific message by its ID

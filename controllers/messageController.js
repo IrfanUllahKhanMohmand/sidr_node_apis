@@ -5,12 +5,20 @@ const messageModel = require("../models/messageModel");
 
 // Controller to handle sending a message (text, image, video, or voice)
 const sendMessage = (req, res) => {
-  const { receiver_id, message, type } = req.body;
+  const { receiver_id, message, type, receiver_type } = req.body;
   const sender_id = req.currentUid;
   const media_url = req.file ? req.file.location : null;
   const id = crypto.randomBytes(16).toString("hex");
 
-  const messageData = { id, sender_id, receiver_id, message, type, media_url };
+  const messageData = {
+    id,
+    sender_id,
+    receiver_id,
+    message,
+    type,
+    receiver_type,
+    media_url,
+  };
 
   messageModel.createMessage(messageData, (err, result) => {
     if (err) return res.status(500).json({ error: err.message });

@@ -3,23 +3,26 @@
 const Post = require("../models/Post");
 const crypto = require("crypto");
 const createPost = (req, res) => {
-  const { title, content } = req.body;
+  const { title, content, charityPageId } = req.body; // Accept charityPageId from the request body
   const isAnonymous = req.body.isAnonymous === "true" ? 1 : 0;
-  const userId = req.currentUid;
+  const userId = req.currentUid; // This will be the user ID from the request
   const imagePath = req.file ? req.file.location : null;
   const id = crypto.randomBytes(16).toString("hex");
 
-  if (!title || !content || !userId) {
-    return res
-      .status(400)
-      .json({ error: "Title, content, and userId are required" });
+  // Validate required fields: title, content, and either userId or charityPageId
+  if (!title || !content || (!userId && !charityPageId)) {
+    return res.status(400).json({
+      error: "Title, content, and either userId or charityPageId are required",
+    });
   }
 
+  // Call the create method, passing either userId or charityPageId
   Post.create(
     id,
     title,
     content,
-    userId,
+    userId || null, // If no userId, pass null
+    charityPageId || null, // If no charityPageId, pass null
     isAnonymous,
     imagePath,
     (err, result) => {
@@ -28,7 +31,8 @@ const createPost = (req, res) => {
         id: id,
         title: title,
         content: content,
-        user_id: userId,
+        user_id: userId || null, // Include user_id if available
+        charity_page_id: charityPageId || null, // Include charity_page_id if available
         is_anonymous: isAnonymous,
         ...(imagePath && { image_path: imagePath }),
       });
@@ -38,28 +42,33 @@ const createPost = (req, res) => {
 
 const updatePost = (req, res) => {
   const postId = req.params.id;
-  const { title, content } = req.body;
-  const isAnonymous = req.body.isAnonymous === "true" ? 1 : 0;
+  const { title, content, isAnonymous: isAnonymousString } = req.body;
+  const isAnonymous =
+    isAnonymousString !== undefined
+      ? isAnonymousString === "true"
+        ? 1
+        : 0
+      : null;
   const imagePath = req.file ? req.file.location : null;
 
   Post.update(
     postId,
     title || null,
     content || null,
-    isAnonymous || null,
-    imagePath,
+    isAnonymous,
+    imagePath || null,
     (err, result) => {
       if (err) return res.status(500).json({ error: "Database error" });
       if (result.affectedRows === 0)
         return res.status(404).json({ error: "Post not found" });
 
-      // Prepare response object
+      // Prepare response object with only updated fields
       const updatedPost = {
         id: postId,
-        ...(title && { title }), // Only include title if it's provided
-        ...(content && { content }), // Only include content if it's provided
-        ...(isAnonymous && { is_anonymous: isAnonymous }), // Only include is_anonymous if it's provided
-        ...(imagePath && { image_path: imagePath }), // Only include image_path if it's provided
+        ...(title && { title }),
+        ...(content && { content }),
+        ...(isAnonymous !== null && { is_anonymous: isAnonymous }),
+        ...(imagePath && { image_path: imagePath }),
       };
 
       res.json(updatedPost);
@@ -89,8 +98,37 @@ const getPostById = (req, res) => {
     if (result.length === 0)
       return res.status(404).json({ error: "Post not found" });
 
-    res.json(result[0]);
+    res.json(result);
   });
+};
+
+const getPostsByUserIdOrCharityId = (req, res) => {
+  const id = req.params.id;
+  const type = req.params.type; // 'user' or 'charityPage'
+  const limit = parseInt(req.query.limit, 10) || 10; // Default limit to 10
+  const page = parseInt(req.query.page, 10) || 1; // Default page to 1
+  const offset = (page - 1) * limit;
+
+  const currentUserId = req.currentUid;
+
+  // Validate the type
+  if (type !== "user" && type !== "charityPage") {
+    return res.status(400).json({
+      error: "Invalid type. Type must be either 'user' or 'charityPage'",
+    });
+  }
+
+  // Call the findByUserIdOrCharityId method with pagination parameters
+  Post.findByUserIdOrCharityId(
+    id,
+    type,
+    currentUserId,
+    { limit, offset },
+    (err, result) => {
+      if (err) return res.status(500).json({ error: "Database error" });
+      res.json(result);
+    }
+  );
 };
 
 const getPostsByUserId = (req, res) => {
@@ -102,10 +140,16 @@ const getPostsByUserId = (req, res) => {
   const currentUserId = req.currentUid;
 
   // Call the findByUserId method with pagination parameters
-  Post.findByUserId(userId, currentUserId, { limit, offset }, (err, result) => {
-    if (err) return res.status(500).json({ error: "Database error" });
-    res.json(result);
-  });
+  Post.findByUserIdOrCharityId(
+    userId,
+    "user",
+    currentUserId,
+    { limit, offset },
+    (err, result) => {
+      if (err) return res.status(500).json({ error: "Database error" });
+      res.json(result);
+    }
+  );
 };
 
 const getCurrentUserPosts = (req, res) => {
@@ -115,10 +159,16 @@ const getCurrentUserPosts = (req, res) => {
   const offset = (page - 1) * limit;
 
   // Call the findByUserId method with pagination parameters
-  Post.findByUserId(userId, userId, { limit, offset }, (err, result) => {
-    if (err) return res.status(500).json({ error: "Database error" });
-    res.json(result);
-  });
+  Post.findByUserIdOrCharityId(
+    userId,
+    "user",
+    userId,
+    { limit, offset },
+    (err, result) => {
+      if (err) return res.status(500).json({ error: "Database error" });
+      res.json(result);
+    }
+  );
 };
 
 const getAllPosts = (req, res) => {
@@ -130,7 +180,7 @@ const getAllPosts = (req, res) => {
 
   // Call the findAll method with pagination parameters
   Post.findAll({ search, limit, offset }, (err, result) => {
-    if (err) return res.status(500).json({ error: "Database error" });
+    if (err) return res.status(500).json({ error: "Database error", err });
     res.json(result);
   });
 };
@@ -242,4 +292,5 @@ module.exports = {
   getAllPosts,
   getCurrentUserPosts,
   getAllPostsExceptUser,
+  getPostsByUserIdOrCharityId,
 };

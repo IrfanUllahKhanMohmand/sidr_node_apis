@@ -17,6 +17,7 @@ const {
   getCharityPageFollowers,
   activateCharityPage,
   deactivateCharityPage,
+  getCharityPagesFollowedByUser,
 } = require("../controllers/charityController");
 const { Route53RecoveryControlConfig } = require("aws-sdk");
 
@@ -65,5 +66,8 @@ router.post("/charities/:id/follow", verifyToken, followCharityPage);
 router.post("/charities/:id/unfollow", verifyToken, unfollowCharityPage);
 
 router.get("/charities/:id/followers", verifyToken, getCharityPageFollowers);
+
+//get charity pages followed by user
+router.get("/charities-followed", verifyToken, getCharityPagesFollowedByUser);
 
 module.exports = router;

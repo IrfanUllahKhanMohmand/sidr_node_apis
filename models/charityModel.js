@@ -316,6 +316,20 @@ const CharityPage = {
       else callback(null, result);
     });
   },
+
+  // Get all charity pages that a user follows
+  getFollowedPages: (userId, callback) => {
+    const query = `
+      SELECT charity_pages.id, charity_pages.name, charity_pages.description, charity_pages.profile_image
+      FROM charity_pages
+      JOIN follows ON charity_pages.id = follows.charity_page_id
+      WHERE follows.user_id = ?
+    `;
+    db.query(query, [userId], (err, result) => {
+      if (err) callback(err, null);
+      else callback(null, result);
+    });
+  },
 };
 
 module.exports = CharityPage;

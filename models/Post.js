@@ -3,12 +3,21 @@
 const db = require("../config/db");
 
 const Post = {
-  create: (id, title, content, userId, isAnonymous, imagePath, callback) => {
+  create: (
+    id,
+    title,
+    content,
+    userId,
+    charityPageId,
+    isAnonymous,
+    imagePath,
+    callback
+  ) => {
     const query =
-      "INSERT INTO posts (id, title, content, userId, is_anonymous, image_path) VALUES (?,?,?, ?, ?, ?)";
+      "INSERT INTO posts (id, title, content, userId, charityPageId, is_anonymous, image_path) VALUES (?, ?, ?, ?, ?, ?, ?)";
     db.query(
       query,
-      [id, title, content, userId, isAnonymous, imagePath],
+      [id, title, content, userId, charityPageId, isAnonymous, imagePath],
       callback
     );
   },
@@ -29,7 +38,6 @@ const Post = {
       updates.push("image_path = ?");
       values.push(imagePath);
     }
-
     if (isAnonymous !== null) {
       updates.push("is_anonymous = ?");
       values.push(isAnonymous);
@@ -113,34 +121,169 @@ const Post = {
     );
   },
 
+  findByUserIdOrCharityId: (
+    id,
+    type,
+    currentUserId,
+    { limit, offset },
+    callback
+  ) => {
+    let query = `
+    SELECT 
+      p.*, 
+      COUNT(DISTINCT l.id) AS likes, 
+      COUNT(DISTINCT c.id) AS commentCount,
+      CASE
+        WHEN p.charityPageId IS NOT NULL THEN cp.name
+        ELSE u.name
+      END AS posterName,
+      CASE
+        WHEN p.charityPageId IS NOT NULL THEN cp.profile_image
+        ELSE u.profile_image
+      END AS posterProfileImage,
+      CASE
+        WHEN p.charityPageId IS NOT NULL THEN 'charityPage'
+        ELSE 'user'
+      END AS posterType,
+      EXISTS (
+        SELECT 1 
+        FROM followers 
+        WHERE follower_id = ? AND following_id = u.id
+      ) AS isFollower`;
+
+    // Add the isLiked check only if currentUserId is provided
+    if (currentUserId) {
+      query += `,
+      EXISTS (
+        SELECT 1 
+        FROM likes 
+        WHERE postId = p.id AND userId = ?
+      ) AS isLiked`;
+    } else {
+      query += `, 0 AS isLiked`; // Default to 0 (false) if no currentUserId
+    }
+
+    query += `
+    FROM posts p 
+    LEFT JOIN likes l ON p.id = l.postId 
+    LEFT JOIN comments c ON p.id = c.postId 
+    LEFT JOIN users u ON p.userId = u.id
+    LEFT JOIN charity_pages cp ON p.charityPageId = cp.id`;
+
+    // Dynamic query construction based on the type of ID
+    let conditions = [];
+    let queryParams = [currentUserId || null]; // Always needed for follower check
+
+    // Add currentUserId again for isLiked check if present
+    if (currentUserId) {
+      queryParams.push(currentUserId);
+    }
+
+    // Filter by userId or charityPageId based on the type
+    if (type === "user") {
+      conditions.push("p.userId = ?");
+      conditions.push("p.charityPageId IS NULL"); // Exclude charityPage posts
+      queryParams.push(id);
+    } else if (type === "charityPage") {
+      conditions.push("p.charityPageId = ?");
+      queryParams.push(id);
+    } else {
+      return callback(
+        new Error("Invalid type. Type must be either 'user' or 'charityPage'"),
+        null
+      );
+    }
+
+    // Append WHERE conditions to the query if any
+    if (conditions.length > 0) {
+      query += ` WHERE ${conditions.join(" AND ")}`;
+    }
+
+    // Add pagination
+    query += " GROUP BY p.id";
+    query += " ORDER BY p.createdAt DESC LIMIT ? OFFSET ?";
+
+    // Pagination parameters
+    queryParams.push(limit, offset);
+
+    // Execute the query with dynamically ordered parameters
+    db.query(query, queryParams, (error, postResults) => {
+      if (error) {
+        return callback(error, null);
+      }
+
+      if (postResults.length === 0) {
+        return callback(null, []); // No results found
+      }
+
+      // Format results with post and poster details
+      const formattedResults = postResults.map((post) => ({
+        post: {
+          id: post.id,
+          title: post.title,
+          content: post.content,
+          isAnonymous: Boolean(post.is_anonymous),
+          imagePath: post.image_path,
+          createdAt: post.createdAt,
+          likes: post.likes,
+          commentCount: post.commentCount,
+          isLiked: Boolean(post.isLiked), // Added isLiked field
+        },
+        poster: {
+          id: post.charityPageId || post.userId, // Choose charityPageId if exists, otherwise userId
+          name: post.posterName,
+          profileImage: post.posterProfileImage,
+          type: post.posterType, // Either 'charityPage' or 'user'
+          isFollower:
+            post.posterType === "user" ? Boolean(post.isFollower) : null, // isFollower only applies to users
+        },
+      }));
+
+      callback(null, formattedResults); // Return formatted results
+    });
+  },
+
   findById: (id, currentUserId, callback) => {
     const postQuery = `
-      SELECT p.*, 
-             u.name AS userName, 
-             u.profile_image AS userProfileImage, 
-             COUNT(DISTINCT l.id) AS likes,
-             EXISTS (
-               SELECT 1 
-               FROM likes 
-               WHERE postId = p.id AND userId = ?
-             ) AS isLiked,
-             EXISTS (
+    SELECT p.*, 
+           COUNT(DISTINCT l.id) AS likes,
+           CASE
+             WHEN p.charityPageId IS NOT NULL THEN cp.name
+             ELSE u.name
+           END AS posterName,
+           CASE
+             WHEN p.charityPageId IS NOT NULL THEN cp.profile_image
+             ELSE u.profile_image
+           END AS posterProfileImage,
+           CASE
+             WHEN p.charityPageId IS NOT NULL THEN 'charityPage'
+             ELSE 'user'
+           END AS posterType,
+           EXISTS (
+             SELECT 1 
+             FROM likes 
+             WHERE postId = p.id AND userId = ?
+           ) AS isLiked,
+           CASE
+             WHEN p.charityPageId IS NULL THEN EXISTS (
                SELECT 1 
                FROM followers 
                WHERE follower_id = ? AND following_id = u.id
-             ) AS isFollower
-      FROM posts p 
-      LEFT JOIN likes l ON p.id = l.postId 
-      LEFT JOIN users u ON p.userId = u.id
-      WHERE p.id = ?
-      GROUP BY p.id, u.id, u.name, u.profile_image
-    `;
+             )
+             ELSE NULL
+           END AS isFollower
+    FROM posts p 
+    LEFT JOIN likes l ON p.id = l.postId 
+    LEFT JOIN users u ON p.userId = u.id
+    LEFT JOIN charity_pages cp ON p.charityPageId = cp.id
+    WHERE p.id = ?
+    GROUP BY p.id`;
 
     const commentsQuery = `
-      SELECT id, content, createdAt, userId
-      FROM comments
-      WHERE postId = ?
-    `;
+    SELECT id, content, createdAt, userId
+    FROM comments
+    WHERE postId = ?
+  `;
 
     // Execute the post query first
     db.query(
@@ -152,7 +295,7 @@ const Post = {
         }
 
         if (postResults.length === 0) {
-          return callback(null, []);
+          return callback(null, null); // No post found
         }
 
         const post = postResults[0];
@@ -170,21 +313,23 @@ const Post = {
               title: post.title,
               content: post.content,
               isAnonymous: Boolean(post.is_anonymous),
-              image_path: post.image_path,
+              imagePath: post.image_path,
               createdAt: post.createdAt,
               likes: post.likes,
-              isLiked: Boolean(post.isLiked), // Added isLiked field
+              isLiked: Boolean(post.isLiked),
               comments: commentResults, // Keeping comments as is
             },
-            user: {
-              id: post.userId,
-              name: post.userName,
-              profile_image: post.userProfileImage,
-              isFollower: Boolean(post.isFollower), // Added isFollower field
+            poster: {
+              id: post.charityPageId || post.userId, // Choose charityPageId if exists, otherwise userId
+              name: post.posterName,
+              profileImage: post.posterProfileImage,
+              type: post.posterType, // Either 'charityPage' or 'user'
+              isFollower:
+                post.posterType === "user" ? Boolean(post.isFollower) : null, // isFollower only for users
             },
           };
 
-          callback(null, [formattedPost]); // Wrapping in array to match your existing structure
+          callback(null, formattedPost); // Return the formatted post
         });
       }
     );
@@ -193,38 +338,57 @@ const Post = {
   // findAll function with optional currentUserId exclusion and search filter
   findAll: ({ currentUserId, search, limit, offset }, callback) => {
     let query = `
-      SELECT p.*, 
-             COUNT(DISTINCT l.id) AS likes, 
-             COUNT(DISTINCT c.id) AS commentCount,
-             u.name AS userName,
-             u.profile_image AS userProfileImage,
-             EXISTS (
-               SELECT 1 
-               FROM followers 
-               WHERE follower_id = ? AND following_id = u.id
-             ) AS isFollower`;
+    SELECT 
+      p.*, 
+      COUNT(DISTINCT l.id) AS likes, 
+      COUNT(DISTINCT c.id) AS commentCount,
+      CASE
+        WHEN p.charityPageId IS NOT NULL THEN cp.name
+        ELSE u.name
+      END AS posterName,
+      CASE
+        WHEN p.charityPageId IS NOT NULL THEN cp.profile_image
+        ELSE u.profile_image
+      END AS posterProfileImage,
+      CASE
+        WHEN p.charityPageId IS NOT NULL THEN 'charityPage'
+        ELSE 'user'
+      END AS posterType,
+      CASE
+        WHEN p.charityPageId IS NOT NULL THEN EXISTS (
+          SELECT 1 
+          FROM follows 
+          WHERE user_id = ? AND charity_page_id = p.charityPageId
+        )
+        ELSE EXISTS (
+          SELECT 1 
+          FROM followers 
+          WHERE follower_id = ? AND following_id = u.id
+        )
+      END AS isFollower`;
 
     // Add the isLiked check only if currentUserId is provided
     if (currentUserId) {
       query += `,
-             EXISTS (
-               SELECT 1 
-               FROM likes 
-               WHERE postId = p.id AND userId = ?
-             ) AS isLiked`;
+      EXISTS (
+        SELECT 1 
+        FROM likes 
+        WHERE postId = p.id AND userId = ?
+      ) AS isLiked`;
     } else {
       query += `, 0 AS isLiked`; // Default to 0 (false) if no currentUserId
     }
 
     query += `
-      FROM posts p 
-      LEFT JOIN likes l ON p.id = l.postId 
-      LEFT JOIN comments c ON p.id = c.postId 
-      LEFT JOIN users u ON p.userId = u.id`;
+    FROM posts p 
+    LEFT JOIN likes l ON p.id = l.postId 
+    LEFT JOIN comments c ON p.id = c.postId 
+    LEFT JOIN users u ON p.userId = u.id
+    LEFT JOIN charity_pages cp ON p.charityPageId = cp.id`;
 
     // Dynamic query construction based on optional parameters
     let conditions = [];
-    let queryParams = [currentUserId || null]; // Always needed for follower check
+    let queryParams = [currentUserId, currentUserId]; // Always needed for follower checks
 
     // Add currentUserId again for isLiked check if present
     if (currentUserId) {
@@ -233,8 +397,10 @@ const Post = {
 
     // Exclude current user's posts if currentUserId is provided
     if (currentUserId) {
-      conditions.push("p.userId != ?");
-      queryParams.push(currentUserId);
+      conditions.push(
+        "p.userId != ? OR p.charityPageId NOT IN (SELECT id FROM charity_pages WHERE userId = ?)"
+      );
+      queryParams.push(currentUserId, currentUserId);
     }
 
     // Search by title or content if search term is provided
@@ -249,7 +415,7 @@ const Post = {
     }
 
     // Add pagination
-    query += " GROUP BY p.id, u.id, u.name, u.profile_image";
+    query += " GROUP BY p.id";
     query += " ORDER BY p.createdAt DESC LIMIT ? OFFSET ?";
 
     // Pagination parameters
@@ -265,24 +431,25 @@ const Post = {
         return callback(null, []); // No results found
       }
 
-      // Format results with post and user details including isLiked and isFollower
+      // Format results with post and poster details
       const formattedResults = postResults.map((post) => ({
         post: {
           id: post.id,
           title: post.title,
           content: post.content,
           isAnonymous: Boolean(post.is_anonymous),
-          image_path: post.image_path,
+          imagePath: post.image_path,
           createdAt: post.createdAt,
           likes: post.likes,
           commentCount: post.commentCount,
           isLiked: Boolean(post.isLiked), // Added isLiked field
         },
-        user: {
-          id: post.userId,
-          name: post.userName,
-          profile_image: post.userProfileImage,
-          isFollower: Boolean(post.isFollower),
+        poster: {
+          id: post.charityPageId || post.userId, // Choose charityPageId if exists, otherwise userId
+          name: post.posterName,
+          profileImage: post.posterProfileImage,
+          type: post.posterType, // Either 'charityPage' or 'user'
+          isFollower: Boolean(post.isFollower), // Determine isFollower based on poster type
         },
       }));
 
