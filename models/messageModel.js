@@ -28,30 +28,37 @@ const createMessage = (messageData, callback) => {
 // Fetch messages between two users
 const getMessages = (user1_id, user2_id, callback) => {
   const sql = `
-          SELECT 
-            m.*,
-            CASE 
-              WHEN m.sender_id =? THEN 1 
-              ELSE 0 
-            END AS isSender
-          FROM messages m
-          WHERE (m.sender_id =? AND m.receiver_id =?) 
-             OR (m.sender_id =? AND m.receiver_id =?)
-          ORDER BY m.timestamp DESC
-      `;
-  db.query(
-    sql,
-    [user1_id, user1_id, user2_id, user2_id, user1_id],
-    (err, results) => {
-      if (err) return callback(err);
-      results = results.map((result) => ({
-        ...result,
-        isSender: result.isSender === 1,
-      }));
-      callback(null, results);
-    }
-  );
+    SELECT 
+      m.*,
+      CASE 
+        WHEN m.sender_id = ? THEN 1 
+        ELSE 0 
+      END AS isSender
+    FROM messages m
+    LEFT JOIN charity_pages cp ON m.receiver_id = cp.id
+    WHERE 
+      (
+        (m.sender_id = ? AND m.receiver_id = ?) -- User-to-user messages
+        OR 
+        (m.sender_id = ? AND m.receiver_id = ?) -- Reverse user-to-user messages
+        OR 
+        (cp.id IS NOT NULL AND m.receiver_id = ?) -- Messages involving a charity page
+      )
+    ORDER BY m.timestamp DESC
+  `;
+
+  const params = [user1_id, user1_id, user2_id, user2_id, user1_id, user2_id];
+
+  db.query(sql, params, (err, results) => {
+    if (err) return callback(err);
+    results = results.map((result) => ({
+      ...result,
+      isSender: result.isSender === 1,
+    }));
+    callback(null, results);
+  });
 };
+
 // Fetch unique conversations for a user
 const getConversations = (user_id, callback) => {
   const sql = `
