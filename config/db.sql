@@ -97,7 +97,7 @@ CREATE TABLE messages (
     type ENUM('text', 'image', 'video', 'voice') DEFAULT 'text',
     media_url VARCHAR(255) DEFAULT NULL,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (sender_id) REFERENCES users(id)
+    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 
@@ -108,8 +108,8 @@ CREATE TABLE donations (
     amount DECIMAL(10, 2),
     payment_method ENUM('Credit Card', 'PayPal', 'Bank Transfer'),
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (charityPageId) REFERENCES charity_pages(id),
-    FOREIGN KEY (userId) REFERENCES users(id)
+    FOREIGN KEY (charityPageId) REFERENCES charity_pages(id) ON DELETE CASCADE,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
 );
 
 
