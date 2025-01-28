@@ -31,7 +31,8 @@ app.use(reportRoutes);
 app.use(fcmTokenRoutes);
 app.use(tokenGenerateRoute);
 
-const PORT = 5001;
-app.listen(PORT, () => {
+const PORT = 80;
+
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server is running on port ${PORT}`);
 });

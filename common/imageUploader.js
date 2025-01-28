@@ -16,7 +16,7 @@ var upload = multer({
   storage: multerS3({
     s3: s3,
     acl: "public-read",
-    bucket: "sidrappbucket",
+    bucket: "sidrappbucketnew",
     key: function (req, file, cb) {
       const uniqueFilename = `${Date.now()}-${file.originalname}`;
       cb(null, uniqueFilename);
