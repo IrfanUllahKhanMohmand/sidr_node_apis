@@ -457,6 +457,80 @@ const Post = {
     });
   },
 
+
+  findAllExceptCurrentUser: ({ currentUserId, limit, offset }, callback) => {
+    if (!currentUserId) {
+      return callback(new Error("currentUserId is required for this function"), null);
+    }
+
+    let query = `
+      SELECT 
+        p.*, 
+        COUNT(DISTINCT l.id) AS likes, 
+        COUNT(DISTINCT c.id) AS commentCount,
+        CASE
+          WHEN p.charityPageId IS NOT NULL THEN cp.name
+          ELSE u.name
+        END AS posterName,
+        CASE
+          WHEN p.charityPageId IS NOT NULL THEN cp.profile_image
+          ELSE u.profile_image
+        END AS posterProfileImage,
+        CASE
+          WHEN p.charityPageId IS NOT NULL THEN 'charityPage'
+          ELSE 'user'
+        END AS posterType,
+        EXISTS (
+          SELECT 1 FROM likes WHERE postId = p.id AND userId = ?
+        ) AS isLiked
+      FROM posts p 
+      LEFT JOIN likes l ON p.id = l.postId 
+      LEFT JOIN comments c ON p.id = c.postId 
+      LEFT JOIN users u ON p.userId = u.id
+      LEFT JOIN charity_pages cp ON p.charityPageId = cp.id
+      LEFT JOIN follows f ON f.charity_page_id = p.charityPageId AND f.user_id = ? -- Correct Join to Only Fetch Followed Charity Pages
+      WHERE 
+        (
+          (p.userId != ?)  -- Exclude the current user’s own posts
+          AND 
+          (p.charityPageId IS NULL OR f.charity_page_id IS NOT NULL) -- Ensure charity page posts are only from followed pages
+        )
+      GROUP BY p.id 
+      ORDER BY p.createdAt DESC 
+      LIMIT ? OFFSET ?`;
+
+    let queryParams = [currentUserId, currentUserId, currentUserId, limit, offset];
+
+    db.query(query, queryParams, (error, results) => {
+      if (error) return callback(error, null);
+      callback(null, results.map((post) => ({
+        post: {
+          id: post.id,
+          title: post.title,
+          content: post.content,
+          isAnonymous: Boolean(post.is_anonymous),
+          imagePath: post.image_path,
+          createdAt: post.createdAt,
+          likes: post.likes,
+          commentCount: post.commentCount,
+          isLiked: Boolean(post.isLiked),
+        },
+        poster: {
+          id: post.charityPageId || post.userId,
+          name: post.posterName,
+          profileImage: post.posterProfileImage,
+          type: post.posterType,
+        },
+      })));
+    });
+  },
+
+
+
+
+
+
+
   getComments: (postId, callback) => {
     const query = `
         SELECT comments.*, users.name, users.profile_image

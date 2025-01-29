@@ -191,11 +191,12 @@ const getAllPostsExceptUser = (req, res) => {
   const page = parseInt(req.query.page, 10) || 1; // Default page to 1
   const offset = (page - 1) * limit;
   const currentUserId = req.currentUid;
-  const search = req.query.search;
+
 
   // Call the findAll method with pagination parameters
-  Post.findAll({ currentUserId, search, limit, offset }, (err, result) => {
-    if (err) return res.status(500).json({ error: "Database error" });
+  Post.findAllExceptCurrentUser({ currentUserId, limit, offset }, (err, result) => {
+    //retrun error if there is any
+    if (err) return res.status(500).json({ error: "Database error", err });
     res.json(result);
   });
 };
