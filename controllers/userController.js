@@ -196,7 +196,7 @@ const addFollowing = (req, res) => {
   const followingId = req.currentUid; // User who is following
 
   User.addFollowing(followingId, userId, (err, result) => {
-    if (err) return res.status(500).json({ error: "Database error" });
+    if (err) return res.status(500).json({ error: "Database error", err });
 
     if (result && result.message) {
       return res.json(result); // Handle already exists case

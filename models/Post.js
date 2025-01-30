@@ -482,24 +482,36 @@ const Post = {
         END AS posterType,
         EXISTS (
           SELECT 1 FROM likes WHERE postId = p.id AND userId = ?
-        ) AS isLiked
+        ) AS isLiked,
+        CASE
+          WHEN p.charityPageId IS NOT NULL THEN EXISTS (
+            SELECT 1 
+            FROM follows 
+            WHERE user_id = ? AND charity_page_id = p.charityPageId
+          )
+          ELSE EXISTS (
+            SELECT 1 
+            FROM followers 
+            WHERE follower_id = ? AND following_id = u.id
+          )
+        END AS isFollower
       FROM posts p 
       LEFT JOIN likes l ON p.id = l.postId 
       LEFT JOIN comments c ON p.id = c.postId 
       LEFT JOIN users u ON p.userId = u.id
       LEFT JOIN charity_pages cp ON p.charityPageId = cp.id
-      LEFT JOIN follows f ON f.charity_page_id = p.charityPageId AND f.user_id = ? -- Correct Join to Only Fetch Followed Charity Pages
+      LEFT JOIN follows f ON f.charity_page_id = p.charityPageId AND f.user_id = ? 
       WHERE 
         (
-          (p.userId != ?)  -- Exclude the current user’s own posts
+          (p.userId != ?)  
           AND 
-          (p.charityPageId IS NULL OR f.charity_page_id IS NOT NULL) -- Ensure charity page posts are only from followed pages
+          (p.charityPageId IS NULL OR f.charity_page_id IS NOT NULL)
         )
       GROUP BY p.id 
       ORDER BY p.createdAt DESC 
       LIMIT ? OFFSET ?`;
 
-    let queryParams = [currentUserId, currentUserId, currentUserId, limit, offset];
+    let queryParams = [currentUserId, currentUserId, currentUserId, currentUserId, currentUserId, limit, offset];
 
     db.query(query, queryParams, (error, results) => {
       if (error) return callback(error, null);
@@ -520,13 +532,11 @@ const Post = {
           name: post.posterName,
           profileImage: post.posterProfileImage,
           type: post.posterType,
+          isFollower: Boolean(post.isFollower),
         },
       })));
     });
   },
-
-
-
 
 
 
