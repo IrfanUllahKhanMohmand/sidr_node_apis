@@ -126,9 +126,6 @@ CREATE TABLE reports (
     FOREIGN KEY (reporting_user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-
-
-
 CREATE TABLE fcm_tokens (
     id INT PRIMARY KEY AUTO_INCREMENT,
     user_id VARCHAR(255) NOT NULL,
@@ -138,6 +135,41 @@ CREATE TABLE fcm_tokens (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     UNIQUE(user_id, device_id)
+);
+
+
+CREATE TABLE feedback (
+  id VARCHAR(255) PRIMARY KEY,
+  user_id INT NOT NULL,
+  content TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE support_messages (
+    id VARCHAR(255) PRIMARY KEY,
+    sender_id VARCHAR(255) NOT NULL,
+    receiver_id VARCHAR(255) NOT NULL,
+    receiver_type ENUM('user', 'charity_page') DEFAULT 'user',
+    message TEXT,
+    type ENUM('text', 'image', 'video', 'voice') DEFAULT 'text',
+    media_url VARCHAR(255) DEFAULT NULL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE frequent_support_messages (
+    id VARCHAR(255) PRIMARY KEY,
+    message TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+CREATE TABLE faqs (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  question TEXT NOT NULL,
+  answer TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 

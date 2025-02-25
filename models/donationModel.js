@@ -18,9 +18,18 @@ const Donation = {
       }
     );
   },
-  getAll: async (callback) => {
-    const sql = `SELECT * FROM donations`;
-    db.query(sql, (err, result) => {
+  getAll: async (from, to, callback) => {
+    let sql = `SELECT * FROM donations`;
+    let params = [];
+
+    if (from && to) {
+      sql += ` WHERE DATE(createdAt) BETWEEN ? AND ?`;
+      params.push(from, to);
+    }
+
+    sql += ` ORDER BY createdAt DESC`; // Sort by most recent donations
+
+    db.query(sql, params, (err, result) => {
       if (err) {
         callback(err, null);
       } else {
@@ -28,6 +37,7 @@ const Donation = {
       }
     });
   },
+
 
   getDonationById: async (donationId, callback) => {
     const sql = `SELECT * FROM donations WHERE id = ?`;
@@ -40,8 +50,8 @@ const Donation = {
     });
   },
 
-  getDonationsByCharityPageId: async (charityPageId, callback) => {
-    const sql = `
+  getDonationsByCharityPageId: async (charityPageId, from, to, callback) => {
+    let sql = `
       SELECT 
         d.id AS donationId,
         d.userId,
@@ -55,9 +65,18 @@ const Donation = {
         u.profile_image AS userProfileImage
       FROM donations d
       JOIN users u ON d.userId = u.id
-      WHERE d.charityPageId = ?`;
+      WHERE d.charityPageId = ?
+    `;
 
-    db.query(sql, [charityPageId], (err, result) => {
+    let params = [charityPageId];
+
+    // Apply date filtering if both from and to are provided
+    if (from && to) {
+      sql += ` AND DATE(d.createdAt) BETWEEN ? AND ?`;
+      params.push(from, to);
+    }
+
+    db.query(sql, params, (err, result) => {
       if (err) {
         callback(err, null);
       } else {
@@ -81,7 +100,9 @@ const Donation = {
     });
   },
 
-  getDonationsByUserId: async (userId, callback) => {
+
+
+  getDonationsByUserId: async (userId, fromDate, toDate, callback) => {
     const sql = `
       SELECT 
         donations.*,
@@ -98,13 +119,13 @@ const Donation = {
       FROM donations
       LEFT JOIN charity_pages ON donations.charityPageId = charity_pages.id
       WHERE donations.userId = ?
+        AND DATE(donations.createdAt) BETWEEN ? AND ?
     `;
 
-    db.query(sql, [userId], (err, result) => {
+    db.query(sql, [userId, fromDate, toDate], (err, result) => {
       if (err) {
         callback(err, null);
       } else {
-        // Format the result to include charity data as a separate field
         const formattedResult = result.map((donation) => {
           const {
             charity_id,
@@ -141,6 +162,9 @@ const Donation = {
       }
     });
   },
+
+
+
 };
 
 module.exports = Donation;

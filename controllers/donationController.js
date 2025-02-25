@@ -30,11 +30,12 @@ const createDonation = async (req, res) => {
 
 const getAllDonations = async (req, res) => {
   try {
-    Donation.getAll((err, donations) => {
+    const { from, to } = req.query;
+
+    Donation.getAll(from, to, (err, donations) => {
       if (err) {
         return res.status(500).json({ message: "Server error" });
       }
-
       res.json({ donations });
     });
   } catch (error) {
@@ -42,12 +43,14 @@ const getAllDonations = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 const getDonationsByCharityPageId = async (req, res) => {
   const { id } = req.params;
+  const { from, to } = req.query; // Get date range from query params
 
   try {
-    Donation.getDonationsByCharityPageId(id, (err, donations) => {
+    Donation.getDonationsByCharityPageId(id, from, to, (err, donations) => {
       if (err) {
         return res.status(500).json({ message: "Server error" });
       }
@@ -59,6 +62,8 @@ const getDonationsByCharityPageId = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+
 
 const getDonationById = async (req, res) => {
   const { id } = req.params;
@@ -81,15 +86,37 @@ const getDonationById = async (req, res) => {
   }
 };
 
-const getDonationsByUserId = async (req, res) => {
+//delete donation by id
+const deleteDonation = async (req, res) => {
   const { id } = req.params;
 
   try {
-    Donation.getDonationsByUserId(id, (err, donations) => {
+    Donation.deleteDonation(id, (err, result) => {
       if (err) {
         return res.status(500).json({ message: "Server error" });
       }
 
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ message: "Donation not found" });
+      }
+
+      res.json({ message: "Donation deleted successfully" });
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+const getDonationsByUserId = async (req, res) => {
+  const { id } = req.params;
+  const { fromDate, toDate } = req.query; // Get date range from query params
+
+  try {
+    Donation.getDonationsByUserId(id, fromDate, toDate, (err, donations) => {
+      if (err) {
+        return res.status(500).json({ message: "Server error" });
+      }
       res.json({ donations });
     });
   } catch (error) {
@@ -98,10 +125,12 @@ const getDonationsByUserId = async (req, res) => {
   }
 };
 
+
 module.exports = {
   createDonation,
   getAllDonations,
   getDonationsByCharityPageId,
   getDonationById,
+  deleteDonation,
   getDonationsByUserId,
 };

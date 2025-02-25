@@ -140,10 +140,146 @@ const createToken = async (req, res) => {
   }
 };
 
+
+//veify email 
+const sendEmailVerification = async (req, res) => {
+  const { idToken } = req.body;
+  try {
+    const response = await axios.post(
+      `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${firebaseConfig.apiKey}`,
+      {
+        requestType: "VERIFY_EMAIL",
+        idToken,
+      }
+    );
+
+    res.status(200).json({
+      message: "Email verification sent successfully"
+    });
+  } catch (error) {
+    console.error("Error verifying email:", error);
+    if (error.response) {
+      res.status(401).json({ message: "Invalid email" });
+    } else {
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  }
+};
+
+//is email verified
+const isEmailVerified = async (req, res) => {
+  const { idToken } = req.body;
+
+  // Check if idToken is provided
+  if (!idToken) {
+    return res.status(400).json({ error: "idToken is required" });
+  }
+  console.log(idToken);
+  try {
+    const response = await axios.post(
+      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${firebaseConfig.apiKey}`,
+      {
+        idToken,
+      }
+    );
+
+    console.log(response);
+
+    const emailVerified = response.data.users[0].emailVerified;
+    // You can now use the idToken to authenticate the user on your server
+    res.status(200).json({ emailVerified });
+  } catch (error) {
+    console.error("Error verifying email:", error);
+    if (error.response) {
+      res.status(401).json({ message: "Invalid email" });
+    } else {
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  }
+}
+
+
+//verify oobCode
+const verifyEmailCode = async (req, res) => {
+  const { oobCode } = req.body;
+  try {
+    const response = await axios.post(
+      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${firebaseConfig.apiKey}`,
+      {
+        oobCode,
+      }
+    );
+
+    const emailVerified = response.data.users[0].emailVerified;
+    // You can now use the idToken to authenticate the user on your server
+    res.status(200).json({ emailVerified });
+  } catch (error) {
+    console.error("Error verifying email:", error);
+    if (error.response) {
+      res.status(401).json({ message: "Invalid email" });
+    } else {
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  }
+};
+
+
+//Send password reset email
+const sendPasswordResetEmail = async (req, res) => {
+  const { email } = req.body;
+  try {
+    await axios.post(
+      `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${firebaseConfig.apiKey}`,
+      {
+        email,
+        requestType: "PASSWORD_RESET",
+      }
+    );
+
+    res.status(200).json({ message: "Password reset email sent successfully" });
+  } catch (error) {
+    console.error("Error sending password reset email:", error);
+    if (error.response) {
+      res.status(401).json({ message: "Invalid email" });
+    } else {
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  }
+};
+
+
+//Reset password
+const resetPassword = async (req, res) => {
+  const { oobCode, newPassword } = req.body;
+  try {
+    await axios.post(
+      `https://identitytoolkit.googleapis.com/v1/accounts:resetPassword?key=${firebaseConfig.apiKey}`,
+      {
+        oobCode,
+        newPassword,
+      }
+    );
+
+    res.status(200).json({ message: "Password reset successfully" });
+  } catch (error) {
+    console.error("Error resetting password:", error);
+    if (error.response) {
+      res.status(401).json({ message: "Invalid oobCode" });
+    } else {
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  }
+};
+
 module.exports = {
   verifyToken,
   createToken,
   listAllUsers,
   enableUser,
   disableUser,
+  sendEmailVerification,
+  verifyEmailCode,
+  sendPasswordResetEmail,
+  resetPassword,
+  isEmailVerified
 };

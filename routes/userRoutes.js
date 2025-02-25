@@ -17,7 +17,9 @@ const {
   searchUsers,
   getAllExceptUser,
 } = require("../controllers/userController");
-const { verifyToken } = require("../common/verifyToken");
+const { verifyToken, sendEmailVerification,
+  verifyEmailCode, sendPasswordResetEmail,
+  resetPassword, isEmailVerified } = require("../common/verifyToken");
 const { upload } = require("../common/imageUploader");
 const router = express.Router();
 
@@ -41,5 +43,13 @@ router.post("/users/:id/followings", verifyToken, addFollowing);
 router.delete("/users/:id/followings", verifyToken, removeFollowing);
 router.get("/users/:id/followings", verifyToken, getFollowings);
 router.get("/users-me/followings", verifyToken, getCurrentUserFollowings);
+
+
+router.get("/is-email-verified", isEmailVerified);
+router.post("/verify-email", sendEmailVerification);
+router.post("/verify-email-code", verifyEmailCode);
+router.post("/send-password-reset-email", sendPasswordResetEmail);
+router.post("/reset-password", resetPassword);
+
 
 module.exports = router;

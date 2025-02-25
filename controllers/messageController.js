@@ -28,6 +28,8 @@ const sendMessage = (req, res) => {
   });
 };
 
+
+
 // Controller to fetch messages between two users
 const getMessages = (req, res) => {
   const user1_id = req.currentUid;
@@ -39,10 +41,26 @@ const getMessages = (req, res) => {
   });
 };
 
+//get all messages from database
+const getAllMessages = (req, res) => {
+  messageModel.getAllMessages((err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ messages: results });
+  });
+};
+
 // Controller to get unique conversations for a user
 const getConversations = (req, res) => {
   const user_id = req.currentUid;
   messageModel.getConversations(user_id, (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ conversations: results });
+  });
+};
+
+// get all the conversations as an admin
+const getAllConversations = (req, res) => {
+  messageModel.getAdminConversations((err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ conversations: results });
   });
@@ -79,4 +97,6 @@ module.exports = {
   getConversations,
   deleteMessage,
   deleteAllMessages,
+  getAllMessages,
+  getAllConversations
 };

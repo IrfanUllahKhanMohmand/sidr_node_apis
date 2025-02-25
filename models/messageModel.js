@@ -59,6 +59,31 @@ const getMessages = (user1_id, user2_id, callback) => {
   });
 };
 
+
+// Fetch all messages from the database
+const getAllMessages = (callback) => {
+  const sql = `
+    SELECT 
+      m.*,
+      CASE
+        WHEN m.sender_id = ? THEN 1
+        ELSE 0
+      END AS isSender
+    FROM messages m
+    LEFT JOIN charity_pages cp ON m.receiver_id = cp.id
+    ORDER BY m.timestamp DESC
+  `;
+  db.query(sql, [0], (err, results) => {
+    if (err) return callback(err);
+    results = results.map((result) => ({
+      ...result,
+      isSender: result.isSender === 1,
+    }));
+    callback(null, results);
+  }
+  );
+};
+
 // Fetch unique conversations for a user
 const getConversations = (user_id, callback) => {
   const sql = `
@@ -160,6 +185,71 @@ const getConversations = (user_id, callback) => {
   );
 };
 
+
+// Fetch all conversations as an admin without giving user_id
+const getAdminConversations = (callback) => {
+  const sql = `
+    WITH last_messages AS (
+      SELECT 
+          sender_id,
+          receiver_id,
+          receiver_type,
+          MAX(timestamp) AS last_message_time
+      FROM messages
+      GROUP BY sender_id, receiver_id, receiver_type
+    )
+    SELECT 
+        CONCAT(lm.sender_id, '-', lm.receiver_id) as conversation_id,
+        lm.sender_id,
+        lm.receiver_id,
+        lm.receiver_type,
+        sender.name as sender_name,
+        sender.profile_image as sender_image,
+        CASE 
+            WHEN lm.receiver_type = 'user' THEN receiver_user.name
+            ELSE receiver_charity.name
+        END AS receiver_name,
+        CASE 
+            WHEN lm.receiver_type = 'user' THEN receiver_user.profile_image
+            ELSE receiver_charity.profile_image
+        END AS receiver_image,
+        COALESCE(
+            (SELECT 
+                CASE 
+                    WHEN m.type IN ('image', 'video') THEN m.type
+                    ELSE m.message
+                END 
+            FROM messages m 
+            WHERE m.timestamp = lm.last_message_time 
+              AND m.sender_id = lm.sender_id 
+              AND m.receiver_id = lm.receiver_id),
+            'No messages'
+        ) AS last_message,
+        lm.last_message_time AS message_time,
+        (
+            SELECT COUNT(*) 
+            FROM messages m 
+            WHERE (m.sender_id = lm.sender_id AND m.receiver_id = lm.receiver_id)
+               OR (m.sender_id = lm.receiver_id AND m.receiver_id = lm.sender_id)
+        ) as message_count
+    FROM last_messages lm
+    INNER JOIN users sender ON lm.sender_id = sender.id
+    LEFT JOIN users receiver_user ON lm.receiver_id = receiver_user.id AND lm.receiver_type = 'user'
+    LEFT JOIN charity_pages receiver_charity ON lm.receiver_id = receiver_charity.id AND lm.receiver_type = 'charity_page'
+    WHERE 
+        (lm.receiver_type = 'user' AND receiver_user.id IS NOT NULL)
+        OR 
+        (lm.receiver_type = 'charity_page' AND receiver_charity.id IS NOT NULL)
+    ORDER BY lm.last_message_time DESC;
+  `;
+
+  db.query(sql, [], (err, results) => {
+    if (err) return callback(err);
+    callback(null, results);
+  });
+};
+
+
 // Delete a specific message by its ID
 const deleteMessage = (message_id, callback) => {
   const sql = "DELETE FROM messages WHERE id = ?";
@@ -188,4 +278,6 @@ module.exports = {
   getConversations,
   deleteMessage,
   deleteAllMessages,
+  getAllMessages,
+  getAdminConversations
 };
