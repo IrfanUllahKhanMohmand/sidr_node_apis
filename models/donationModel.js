@@ -103,7 +103,7 @@ const Donation = {
 
 
   getDonationsByUserId: async (userId, fromDate, toDate, callback) => {
-    const sql = `
+    let sql = `
       SELECT 
         donations.*,
         charity_pages.id AS charity_id,
@@ -119,10 +119,17 @@ const Donation = {
       FROM donations
       LEFT JOIN charity_pages ON donations.charityPageId = charity_pages.id
       WHERE donations.userId = ?
-        AND DATE(donations.createdAt) BETWEEN ? AND ?
     `;
 
-    db.query(sql, [userId, fromDate, toDate], (err, result) => {
+    const params = [userId];
+
+    // If fromDate and toDate are provided, add the date filter
+    if (fromDate && toDate) {
+      sql += ` AND DATE(donations.createdAt) BETWEEN ? AND ?`;
+      params.push(fromDate, toDate);
+    }
+
+    db.query(sql, params, (err, result) => {
       if (err) {
         callback(err, null);
       } else {
@@ -162,6 +169,7 @@ const Donation = {
       }
     });
   },
+
 
 
 
