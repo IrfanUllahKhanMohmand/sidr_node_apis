@@ -174,7 +174,6 @@ const isEmailVerified = async (req, res) => {
   if (!idToken) {
     return res.status(400).json({ error: "idToken is required" });
   }
-  console.log(idToken);
   try {
     const response = await axios.post(
       `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${firebaseConfig.apiKey}`,
@@ -182,8 +181,6 @@ const isEmailVerified = async (req, res) => {
         idToken,
       }
     );
-
-    console.log(response);
 
     const emailVerified = response.data.users[0].emailVerified;
     // You can now use the idToken to authenticate the user on your server
