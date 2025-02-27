@@ -1,4 +1,5 @@
-const FAQ = require("../models/faq")
+// Updated FAQ Controller
+const faqModel = require("../models/faq")
 const crypto = require("crypto");
 
 exports.create = (req, res) => {
@@ -9,38 +10,38 @@ exports.create = (req, res) => {
         return res.status(400).json({ message: "Missing required parameters" })
     }
 
-    FAQ.create({ id, question, answer }, (err, result) => {
-        if (err) {
-            console.error(err)
-            return res.status(500).json({ message: "Failed to create FAQ" })
-        }
-        res.status(201).json({ message: "FAQ created successfully", id: result.insertId })
-    })
+    const faqData = {
+        id,
+        question,
+        answer
+    };
+
+    faqModel.createFaq(faqData, (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(201).json({
+            message: "FAQ created successfully",
+            faqData
+        });
+    });
 }
 
 exports.findAll = (req, res) => {
-    FAQ.findAll((err, results) => {
-        if (err) {
-            console.error(err)
-            return res.status(500).json({ message: "Failed to retrieve FAQs" })
-        }
-        res.status(200).json(results)
-    })
+    faqModel.findAll((err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(200).json(results);
+    });
 }
 
 exports.findOne = (req, res) => {
     const id = req.params.id
 
-    FAQ.findById(id, (err, result) => {
-        if (err) {
-            console.error(err)
-            return res.status(500).json({ message: "Failed to retrieve FAQ" })
+    faqModel.findById(id, (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!result || result.length === 0) {
+            return res.status(404).json({ message: "FAQ not found" });
         }
-        if (!result) {
-            return res.status(404).json({ message: "FAQ not found" })
-        }
-        res.status(200).json(result)
-    })
+        res.status(200).json(result[0]);
+    });
 }
 
 exports.update = (req, res) => {
@@ -48,33 +49,26 @@ exports.update = (req, res) => {
     const { question, answer } = req.body
 
     if (!question || !answer) {
-        return res.status(400).json({ message: "Missing required parameters" })
+        return res.status(400).json({ message: "Missing required parameters" });
     }
 
-    FAQ.update(id, { question, answer }, (err, result) => {
-        if (err) {
-            console.error(err)
-            return res.status(500).json({ message: "Failed to update FAQ" })
-        }
+    faqModel.update(id, { question, answer }, (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
         if (result.affectedRows === 0) {
-            return res.status(404).json({ message: "FAQ not found" })
+            return res.status(404).json({ message: "FAQ not found" });
         }
-        res.status(200).json({ message: "FAQ updated successfully" })
-    })
+        res.status(200).json({ message: "FAQ updated successfully" });
+    });
 }
 
 exports.delete = (req, res) => {
     const id = req.params.id
 
-    FAQ.delete(id, (err, result) => {
-        if (err) {
-            console.error(err)
-            return res.status(500).json({ message: "Failed to delete FAQ" })
-        }
+    faqModel.delete(id, (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
         if (result.affectedRows === 0) {
-            return res.status(404).json({ message: "FAQ not found" })
+            return res.status(404).json({ message: "FAQ not found" });
         }
-        res.status(200).json({ message: "FAQ deleted successfully" })
-    })
+        res.status(200).json({ message: "FAQ deleted successfully" });
+    });
 }
-
