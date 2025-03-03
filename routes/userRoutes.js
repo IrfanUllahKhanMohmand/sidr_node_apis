@@ -16,10 +16,11 @@ const {
   getCurrentUserFollowings,
   searchUsers,
   getAllExceptUser,
+
 } = require("../controllers/userController");
 const { verifyToken, sendEmailVerification,
   verifyEmailCode, sendPasswordResetEmail,
-  resetPassword, isEmailVerified } = require("../common/verifyToken");
+  resetPassword, isEmailVerified, isAdmin, removeAdmin, setAdmin } = require("../common/verifyToken");
 const { upload } = require("../common/imageUploader");
 const router = express.Router();
 
@@ -50,6 +51,10 @@ router.post("/verify-email", sendEmailVerification);
 router.post("/verify-email-code", verifyEmailCode);
 router.post("/send-password-reset-email", sendPasswordResetEmail);
 router.post("/reset-password", resetPassword);
+router.post("/is-admin", isAdmin);
+router.post("/set-admin", setAdmin);
+router.post("/remove-admin", removeAdmin);
+
 
 
 module.exports = router;

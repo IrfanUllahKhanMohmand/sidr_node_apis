@@ -1,31 +1,31 @@
 const db = require("../config/db")
 
 exports.create = (message, callback) => {
-    const sql = `
+  const sql = `
     INSERT INTO support_messages 
     (id, sender_id, receiver_id, receiver_type, message, type, media_url) 
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `
 
-    db.query(
-        sql,
-        [
-            message.id,
-            message.sender_id,
-            message.receiver_id,
-            message.receiver_type,
-            message.message,
-            message.type,
-            message.media_url,
-        ],
-        callback,
-    )
+  db.query(
+    sql,
+    [
+      message.id,
+      message.sender_id,
+      message.receiver_id,
+      message.receiver_type,
+      message.message,
+      message.type,
+      message.media_url,
+    ],
+    callback,
+  )
 }
 
 
 //fetch support conversations with last message and the user details
 exports.getConversations = (user_id, callback) => {
-    const sql = `
+  const sql = `
     SELECT 
       sm.id, 
       sm.sender_id, 
@@ -63,73 +63,90 @@ exports.getConversations = (user_id, callback) => {
     ORDER BY sm.timestamp DESC
   `;
 
-    db.query(sql, [user_id, user_id, user_id, user_id, user_id], callback);
+  db.query(sql, [user_id, user_id, user_id, user_id, user_id], callback);
 }
 
 exports.getMessagesWithUser = (user_id, other_user_id, callback) => {
-    const sql = `
-    SELECT 
-      sm.id, 
-      sm.sender_id, 
-      sm.receiver_id, 
-      sm.receiver_type, 
-      sm.message, 
-      sm.type, 
-      sm.media_url, 
-      sm.timestamp 
-    FROM 
-      support_messages sm 
-    WHERE 
-      (sm.sender_id = ? AND sm.receiver_id = ?) 
-      OR 
-      (sm.sender_id = ? AND sm.receiver_id = ?)
-    ORDER BY 
-      sm.timestamp ASC
-  `;
+  const sql = `
+  SELECT 
+    sm.id, 
+    sm.sender_id, 
+    sm.receiver_id, 
+    sm.receiver_type, 
+    sm.message, 
+    sm.type, 
+    sm.media_url, 
+    sm.timestamp,
+    CASE 
+      WHEN sm.sender_id = ? THEN 1 
+      ELSE 0 
+    END AS is_sender
+  FROM 
+    support_messages sm 
+  WHERE 
+    (sm.sender_id = ? AND sm.receiver_id = ?) 
+    OR 
+    (sm.sender_id = ? AND sm.receiver_id = ?)
+  ORDER BY 
+    sm.timestamp ASC
+`;
 
-    db.query(sql, [user_id, other_user_id, other_user_id, user_id], callback);
+  db.query(sql, [user_id, user_id, other_user_id, other_user_id, user_id], (err, results) => {
+    if (err) return callback(err);
+
+    // Convert `is_sender` from 1/0 to true/false
+    results = results.map(row => ({
+      ...row,
+      is_sender: row.is_sender === 1 // Convert to boolean
+    }));
+
+    callback(null, results);
+  });
 };
 
 
 
 
-exports.findAll = (callback) => {
-    const sql = `SELECT * FROM support_messages`
 
-    db.query(sql, callback)
+
+
+exports.findAll = (callback) => {
+  const sql = `SELECT * FROM support_messages`
+
+  db.query(sql, callback)
 }
 
 exports.findById = (id, callback) => {
-    const sql = `SELECT * FROM support_messages WHERE id = ?`
+  const sql = `SELECT * FROM support_messages WHERE id = ?`
 
-    db.query(sql, [id], callback)
+  db.query(sql, [id], callback)
 }
 
 exports.update = (id, message, callback) => {
-    const sql = `
+  const sql = `
     UPDATE support_messages 
     SET sender_id = ?, receiver_id = ?, receiver_type = ?, message = ?, type = ?, media_url = ? 
     WHERE id = ?
   `
 
-    db.query(
-        sql,
-        [
-            message.sender_id,
-            message.receiver_id,
-            message.receiver_type,
-            message.message,
-            message.type,
-            message.media_url,
-            id,
-        ],
-        callback,
-    )
+  db.query(
+    sql,
+    [
+      message.sender_id,
+      message.receiver_id,
+      message.receiver_type,
+      message.message,
+      message.type,
+      message.media_url,
+      id,
+    ],
+    callback,
+  )
 }
 
 exports.delete = (id, callback) => {
-    const sql = `DELETE FROM support_messages WHERE id = ?`
+  const sql = `DELETE FROM support_messages WHERE id = ?`
 
-    db.query(sql, [id], callback)
+  db.query(sql, [id], callback)
 }
 

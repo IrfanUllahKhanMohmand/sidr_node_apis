@@ -58,6 +58,58 @@ const verifyToken = (req, res, next) => {
     });
 };
 
+
+//Set Admin
+const setAdmin = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    // Get user details by email
+    const user = await admin.auth().getUserByEmail(email);
+
+    // Set admin custom claim
+    await admin.auth().setCustomUserClaims(user.uid, { admin: true });
+
+    res.status(200).json({ message: `User with email ${email} is now an admin` });
+  } catch (error) {
+    res.status(500).json({ error });
+  }
+};
+
+// remove admin
+const removeAdmin = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    // Get user details by email
+    const user = await admin.auth().getUserByEmail(email);
+
+    // Remove admin custom claim
+    await admin.auth().setCustomUserClaims(user.uid, { admin: false });
+
+    res.status(200).json({ message: `User with email ${email} is no longer an admin` });
+  } catch (error) {
+    res.status(500).json({ error });
+  }
+};
+
+
+//is admin
+const isAdmin = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const user = await admin.auth().getUserByEmail(email);
+    const isAdmin = user.customClaims?.admin || false;
+
+    res.status(200).json({ isAdmin });
+  } catch (error) {
+    res.status(500).json({ error });
+  }
+};
+
+
+
 //List all users in firebase auth
 const listAllUsers = async (req, res) => {
   try {
@@ -128,8 +180,13 @@ const createToken = async (req, res) => {
     );
 
     const idToken = response.data.idToken;
-    // You can now use the idToken to authenticate the user on your server
-    res.status(200).json({ message: "User logged in successfully", idToken });
+
+    // Verify Firebase token to get user data
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const user = await admin.auth().getUser(decodedToken.uid);
+    const isAdmin = user.customClaims?.admin || false;
+
+    res.status(200).json({ message: "User logged in successfully", idToken, isAdmin });
   } catch (error) {
     console.error("Error logging in:", error);
     if (error.response) {
@@ -139,6 +196,7 @@ const createToken = async (req, res) => {
     }
   }
 };
+
 
 
 //veify email 
@@ -278,5 +336,8 @@ module.exports = {
   verifyEmailCode,
   sendPasswordResetEmail,
   resetPassword,
-  isEmailVerified
+  isEmailVerified,
+  setAdmin,
+  removeAdmin,
+  isAdmin
 };
