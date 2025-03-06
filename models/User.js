@@ -115,7 +115,7 @@ const User = {
       // Add the isFollower check using excludeId
       if (excludeId) {
         query += `,
-               EXISTS (
+               EXISTS ( 
                  SELECT 1 
                  FROM followers 
                  WHERE follower_id = ? AND following_id = u.id
@@ -216,8 +216,10 @@ const User = {
         try {
           const firebaseUser = await admin.auth().getUser(user.id);
           user.isDisabled = firebaseUser.disabled;
+          user.isAdmin = firebaseUser.customClaims?.admin || false; // Get isAdmin
         } catch (error) {
           user.isDisabled = false; // Handle user not found or other errors gracefully
+          user.isAdmin = false;
           console.error(`Error fetching user ${user.id}:`, error);
         }
         user.followers_count = user.followers_count || 0;

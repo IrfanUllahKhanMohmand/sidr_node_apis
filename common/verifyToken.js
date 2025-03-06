@@ -199,59 +199,104 @@ const createToken = async (req, res) => {
 
 
 
-//veify email 
 const sendEmailVerification = async (req, res) => {
-  const { idToken } = req.body;
+  const { email } = req.body
+
+  if (!email) {
+    return res.status(400).json({ error: "Email is required" })
+  }
+
   try {
-    const response = await axios.post(
-      `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${firebaseConfig.apiKey}`,
+    // 1. Get the user by email
+    const userRecord = await admin.auth().getUserByEmail(email)
+
+    // 2. Create a custom token for this user
+    const customToken = await admin.auth().createCustomToken(userRecord.uid)
+
+    // 3. Exchange custom token for ID token
+    const tokenResponse = await axios.post(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=${firebaseConfig.apiKey}`,
       {
-        requestType: "VERIFY_EMAIL",
-        idToken,
-      }
-    );
+        token: customToken,
+        returnSecureToken: true,
+      },
+    )
+
+    const idToken = tokenResponse.data.idToken
+
+    // 4. Send verification email using the ID token
+    await axios.post(`https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${firebaseConfig.apiKey}`, {
+      requestType: "VERIFY_EMAIL",
+      idToken: idToken,
+    })
 
     res.status(200).json({
-      message: "Email verification sent successfully"
-    });
+      success: true,
+      message: "Email verification sent successfully",
+    })
   } catch (error) {
-    console.error("Error verifying email:", error);
-    if (error.response) {
-      res.status(401).json({ message: "Invalid email" });
+    console.error("Error sending verification email:", error)
+
+    // Handle specific Firebase Admin errors
+    if (error.code === "auth/user-not-found") {
+      return res.status(404).json({
+        success: false,
+        message: "User not found with the provided email",
+      })
+    } else if (error.response) {
+      // Handle REST API errors
+      return res.status(error.response.status).json({
+        success: false,
+        message: error.response.data.error.message || "Failed to send verification email",
+      })
     } else {
-      res.status(500).json({ message: "Internal Server Error" });
-    }
-  }
-};
-
-//is email verified
-const isEmailVerified = async (req, res) => {
-  const { idToken } = req.body;
-
-  // Check if idToken is provided
-  if (!idToken) {
-    return res.status(400).json({ error: "idToken is required" });
-  }
-  try {
-    const response = await axios.post(
-      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${firebaseConfig.apiKey}`,
-      {
-        idToken,
-      }
-    );
-
-    const emailVerified = response.data.users[0].emailVerified;
-    // You can now use the idToken to authenticate the user on your server
-    res.status(200).json({ emailVerified });
-  } catch (error) {
-    console.error("Error verifying email:", error);
-    if (error.response) {
-      res.status(401).json({ message: "Invalid email" });
-    } else {
-      res.status(500).json({ message: "Internal Server Error" });
+      return res.status(500).json({
+        success: false,
+        message: "Internal Server Error",
+      })
     }
   }
 }
+
+const isEmailVerified = async (req, res) => {
+  const { email } = req.body
+
+  if (!email) {
+    return res.status(400).json({ error: "Email is required" })
+  }
+
+  try {
+    // Get the user by email using Firebase Admin SDK
+    const userRecord = await admin.auth().getUserByEmail(email)
+
+    // Check if the email is verified
+    const emailVerified = userRecord.emailVerified
+
+    res.status(200).json({
+      success: true,
+      emailVerified,
+    })
+  } catch (error) {
+    console.error("Error checking email verification:", error)
+
+    // Handle specific Firebase Admin errors
+    if (error.code === "auth/user-not-found") {
+      return res.status(404).json({
+        success: false,
+        message: "User not found with the provided email",
+      })
+    } else {
+      return res.status(500).json({
+        success: false,
+        message: "Internal Server Error",
+      })
+    }
+  }
+}
+
+
+
+
 
 
 //verify oobCode
