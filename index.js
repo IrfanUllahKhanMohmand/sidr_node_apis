@@ -18,15 +18,11 @@ const supportMessageRoutes = require("./routes/supportMessageRoutes");
 const frequentSupportMessageRoutes = require("./routes/frequentSupportMessageRoutes");
 const faqRoutes = require("./routes/faqRoutes");
 
-
 require("dotenv").config();
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
-
-//Add status of the user profile
-//Update status of the user profile
 
 // Routes
 app.use(userRoutes);
@@ -42,9 +38,8 @@ app.use(supportMessageRoutes);
 app.use(frequentSupportMessageRoutes);
 app.use(faqRoutes);
 
-const PORT = 80;
-
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server is running on port ${PORT}`);
+// Start Node.js app on a different port (e.g., 3000)
+const PORT = 3000;
+app.listen(PORT, () => {
+  console.log(`Node.js app running on port ${PORT}`);
 });
-
