@@ -38,7 +38,11 @@ exports.getConversations = (user_id, callback) => {
       u.name, 
       u.email, 
       u.phone, 
-      u.profile_image 
+      u.profile_image,
+      CASE
+        WHEN sm.sender_id = ? THEN sm.receiver_id
+        WHEN sm.receiver_id = ? THEN sm.sender_id
+      END AS other_user_id
     FROM 
       support_messages sm 
       JOIN users u ON 
@@ -63,8 +67,9 @@ exports.getConversations = (user_id, callback) => {
     ORDER BY sm.timestamp DESC
   `;
 
-  db.query(sql, [user_id, user_id, user_id, user_id, user_id], callback);
+  db.query(sql, [user_id, user_id, user_id, user_id, user_id, user_id, user_id], callback);
 }
+
 
 exports.getMessagesWithUser = (user_id, other_user_id, callback) => {
   const sql = `
